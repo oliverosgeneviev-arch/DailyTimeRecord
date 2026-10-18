@@ -1,0 +1,2362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Crew DTR Mobile — Daily Time Record</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .font-mono-clock {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Smooth custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.5);
+            border-radius: 9999px;
+        }
+        /* Tactile punch button effects */
+        .punch-btn-in {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .punch-btn-in:active:not(:disabled) {
+            transform: scale(0.96) translateY(2px);
+            box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.4);
+        }
+        .punch-btn-out {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .punch-btn-out:active:not(:disabled) {
+            transform: scale(0.96) translateY(2px);
+            box-shadow: 0 4px 12px -2px rgba(245, 158, 11, 0.4);
+        }
+        @keyframes pulseRing {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            70% { transform: scale(1.15); opacity: 0; }
+            100% { transform: scale(1.15); opacity: 0; }
+        }
+        .status-pulse::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 9999px;
+            background: inherit;
+            animation: pulseRing 2s infinite;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-white">
+
+    <!-- Top Status & Connectivity Header -->
+    <header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-6 py-3">
+        <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
+            <!-- Brand & Sheet Badge -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-900/40">
+                    <i class="fa-solid fa-user-clock text-white text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-base sm:text-lg tracking-tight text-white">Crew DTR</h1>
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            Updated DTR
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400" id="headerCutoffLabel">
+                        Cutoff: 2026-10-16 to 2026-10-31 • 2nd Half
+                    </p>
+                </div>
+            </div>
+
+            <!-- Connectivity & Offline Mode Simulator Toggle -->
+            <div class="flex items-center gap-2">
+                <!-- Go Live / Activate Guide Button -->
+                <button onclick="toggleGoLiveModal(true)" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition" title="How to Activate & Make App Live">
+                    <i class="fa-solid fa-rocket text-emerald-400"></i>
+                    <span class="hidden md:inline">Go Live Guide</span>
+                </button>
+
+                <!-- Pending Offline Queue Pill -->
+                <button id="syncQueueBtn" onclick="syncOfflineQueue()" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-semibold hover:bg-amber-500/30 transition">
+                    <i class="fa-solid fa-arrows-rotate fa-spin text-amber-400"></i>
+                    <span id="pendingCountText">0 Pending</span>
+                </button>
+
+                <!-- Cloud Real-Time Status Pill -->
+                <div id="cloudStatusPill" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-950/80 border border-sky-700/50 text-sky-300 text-xs font-semibold">
+                    <i id="cloudStatusIcon" class="fa-solid fa-cloud text-sky-400"></i>
+                    <span id="cloudStatusText">Connecting Cloud...</span>
+                </div>
+
+                <!-- Online/Offline Toggle Button -->
+                <button id="networkToggleBtn" onclick="toggleSimulatedOffline()" title="Tap to test Offline Mode" class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all bg-emerald-950/80 border-emerald-700/60 text-emerald-300">
+                    <span id="networkDot" class="relative w-2 h-2 rounded-full bg-emerald-400 status-pulse"></span>
+                    <span id="networkLabel">Online • Cloud Synced</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Cloud Session & Multi-Device User ID Bar -->
+        <div class="max-w-4xl mx-auto mt-2 pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 text-emerald-400 font-semibold">
+                    <i class="fa-solid fa-bolt"></i> Real-Time Multi-Device Sync
+                </span>
+                <span class="text-slate-600">•</span>
+                <span id="lastCloudSyncLabel">Waiting for initial cloud sync...</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <span class="text-slate-500">Device Session ID:</span>
+                <code id="headerUserIdDisplay" class="font-mono-clock text-[10px] text-slate-300 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 select-all">Authenticating...</code>
+                <button onclick="copyUserIdToClipboard()" class="text-slate-400 hover:text-emerald-400 px-1" title="Copy Device Session ID">
+                    <i class="fa-regular fa-copy"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Offline Mode Informative Banner (Visible when Offline) -->
+        <div id="offlineBanner" class="hidden max-w-4xl mx-auto mt-2.5 px-3 py-2 rounded-xl bg-amber-950/70 border border-amber-700/60 text-amber-200 text-xs flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-wifi-slash text-amber-400"></i>
+                <span><strong>Offline Mode Active:</strong> Crew Sign-In & Sign-Out logs are saved locally in memory and will auto-sync to <em>Cloud Storage & Updated DTR</em> once reconnected.</span>
+            </div>
+            <button onclick="toggleSimulatedOffline()" class="shrink-0 px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition">
+                Go Online
+            </button>
+        </div>
+    </header>
+
+    <!-- Main App Content -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 pt-4 pb-24 space-y-5">
+
+        <!-- TAB 1: DAILY SIGN-IN / SIGN-OUT TERMINAL -->
+        <section id="tab-punch" class="space-y-5">
+
+            <!-- Live Philippine Time (PHT) Clock & Date Selector Bar -->
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-800 p-4 sm:p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-400">
+                            <i class="fa-regular fa-calendar-check"></i>
+                            <span>Philippine Standard Time (PHT)</span>
+                        </div>
+                        <div id="liveClockDisplay" class="font-mono-clock text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-1">
+                            01:29:00 PM
+                        </div>
+                        <div class="text-xs sm:text-sm text-slate-400 mt-0.5 flex items-center gap-2">
+                            <span id="liveDateDisplay">Sunday, October 18, 2026</span>
+                            <span class="text-slate-600">•</span>
+                            <span class="text-emerald-400 font-medium">Pay Cycle: 2nd Half (16th – End)</span>
+                        </div>
+                    </div>
+
+                    <!-- Active Working Date Picker (Defaults to Sheet Current Date: 2026-10-18) -->
+                    <div class="flex flex-col sm:items-end gap-1.5 bg-slate-950/70 p-3 rounded-xl border border-slate-800/90">
+                        <label for="activeDateSelect" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                            Active DTR Log Date
+                        </label>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="stepActiveDate(-1)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition" title="Previous Day">
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
+                            <select id="activeDateSelect" onchange="handleDateChange(this.value)" class="bg-slate-900 text-white text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:border-emerald-500">
+                                <!-- Populated dynamically from Cutoff Period 2026-10-16 to 2026-10-31 -->
+                            </select>
+                            <button onclick="stepActiveDate(1)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition" title="Next Day">
+                                <i class="fa-solid fa-chevron-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Crew Member Selection Grid -->
+            <div>
+                <div class="flex items-center justify-between mb-2.5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-users text-emerald-400"></i>
+                        <span>1. Select Crew Member</span>
+                    </h2>
+                    <span class="text-xs text-slate-400" id="onDutySummaryBadge">2 of 3 Logged In Today</span>
+                </div>
+
+                <div id="crewSelectorGrid" class="grid grid-cols-3 gap-2.5 sm:gap-4">
+                    <!-- Populated via JS for Maricel, Pamela, Aileen -->
+                </div>
+            </div>
+
+            <!-- Active Crew Member Shift & One-Tap Punch Card -->
+            <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 sm:p-6 shadow-xl space-y-5">
+                <!-- Selected Crew Profile & Shift Rules -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                    <div class="flex items-center gap-3.5">
+                        <div id="selectedCrewAvatar" class="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl font-extrabold text-emerald-300 shadow-inner">
+                            M
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h3 id="selectedCrewName" class="text-xl font-extrabold text-white">Maricel</h3>
+                                <span id="selectedCrewRole" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                                    Standard Crew
+                                </span>
+                                <span id="selectedCrewStatusBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                                    Not Signed In
+                                </span>
+                            </div>
+                            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+                                Shift Schedule: <strong id="selectedCrewExpectedIn" class="text-slate-200">10:30 AM</strong> to <strong id="selectedCrewFixedOut" class="text-slate-200">08:00 PM</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Today's Recorded Stamps for Selected Crew -->
+                    <div class="grid grid-cols-2 gap-2 sm:w-64 bg-slate-950/90 p-2.5 rounded-xl border border-slate-800">
+                        <div class="text-center px-2 py-1 rounded-lg bg-slate-900/80">
+                            <span class="block text-[10px] uppercase tracking-wider text-slate-400">Time In (PHT)</span>
+                            <span id="currentRecordTimeIn" class="font-mono-clock text-sm font-bold text-emerald-400">--:--</span>
+                        </div>
+                        <div class="text-center px-2 py-1 rounded-lg bg-slate-900/80">
+                            <span class="block text-[10px] uppercase tracking-wider text-slate-400">Time Out (PHT)</span>
+                            <span id="currentRecordTimeOut" class="font-mono-clock text-sm font-bold text-amber-400">--:--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Punch Mode Options (Live Time vs Custom/Sheet Time + Fixed Out Toggle) -->
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950/60 px-3.5 py-2.5 rounded-xl border border-slate-800/80 text-xs">
+                    <div class="flex items-center gap-3">
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" id="useFixedOutToggle" checked class="rounded border-slate-700 text-emerald-500 focus:ring-emerald-500 bg-slate-900 w-4 h-4">
+                            <span class="text-slate-300">Use Sheet <strong>Fixed Out</strong> (<span id="fixedOutHintText">08:00 PM</span>) on Sign-Out</span>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label for="manualTimeInput" class="text-slate-400 font-medium">Time Stamp:</label>
+                        <select id="timeStampMode" onchange="toggleManualTimeInput()" class="bg-slate-900 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-medium">
+                            <option value="live">Live Clock (Now)</option>
+                            <option value="expected">Expected Shift Time</option>
+                            <option value="custom">Custom Time...</option>
+                        </select>
+                        <input type="time" id="manualTimeInput" value="10:30" class="hidden bg-slate-900 text-white px-2.5 py-1 rounded-lg border border-emerald-500/60 text-xs font-mono-clock">
+                    </div>
+                </div>
+
+                <!-- BIG TACTILE SIGN-IN & SIGN-OUT BUTTONS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                    <!-- SIGN IN BUTTON -->
+                    <button id="btnSignIn" onclick="handleCrewPunch('IN')" class="punch-btn-in rounded-2xl p-5 text-left flex items-center justify-between group disabled:opacity-40 disabled:pointer-events-none">
+                        <div class="space-y-1">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-100 bg-black/20 px-2.5 py-0.5 rounded-full">
+                                <i class="fa-solid fa-right-to-bracket"></i> Daily Log In
+                            </span>
+                            <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                                SIGN IN
+                            </div>
+                            <p id="signInSubtext" class="text-xs text-emerald-100/90">
+                                Tap to log arrival time for <span class="font-semibold">Maricel</span>
+                            </p>
+                        </div>
+                        <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-white text-2xl group-hover:scale-105 transition">
+                            <i class="fa-solid fa-fingerprint"></i>
+                        </div>
+                    </button>
+
+                    <!-- SIGN OUT BUTTON -->
+                    <button id="btnSignOut" onclick="handleCrewPunch('OUT')" class="punch-btn-out rounded-2xl p-5 text-left flex items-center justify-between group disabled:opacity-40 disabled:pointer-events-none">
+                        <div class="space-y-1">
+                            <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-100 bg-black/20 px-2.5 py-0.5 rounded-full">
+                                <i class="fa-solid fa-right-from-bracket"></i> Daily Log Out
+                            </span>
+                            <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                                SIGN OUT
+                            </div>
+                            <p id="signOutSubtext" class="text-xs text-amber-100/90">
+                                Tap to log departure (<span class="font-semibold">08:00 PM</span> Fixed Out)
+                            </p>
+                        </div>
+                        <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-white text-2xl group-hover:scale-105 transition">
+                            <i class="fa-solid fa-door-open"></i>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Secondary Quick Actions: Mark Day Off or Clear Today's Entry -->
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <button onclick="handleMarkDayOff()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-umbrella-beach text-sky-400"></i>
+                            <span>Mark as Day Off</span>
+                        </button>
+                        <button onclick="handleClearEntry()" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-800 text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-regular fa-trash-can"></i>
+                            <span>Reset Day</span>
+                        </button>
+                    </div>
+                    <div id="lateIndicatorText" class="text-xs font-medium text-slate-400">
+                        On-time threshold: <span class="text-slate-200 font-semibold">10:30 AM</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Today's All-Crew Live Snapshot Card -->
+            <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 sm:p-5 shadow-lg">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-clipboard-user text-emerald-400"></i>
+                            <span>All Crew Status for <span id="snapshotDateTitle" class="text-emerald-400">Oct 18, 2026</span></span>
+                        </h3>
+                        <p class="text-xs text-slate-400">Tap any crew row to switch active profile</p>
+                    </div>
+                    <button onclick="switchBottomTab('sheet')" class="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+                        <span>Full Cutoff Sheet</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <div id="todayCrewSnapshotList" class="divide-y divide-slate-800/80">
+                    <!-- Rendered dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: MASTER DAILY TIME RECORD (UPDATED DTR SHEET VIEW) -->
+        <section id="tab-sheet" class="hidden space-y-4">
+            <!-- Master Header Info Replica of Updated DTR B2:I5 -->
+            <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 sm:p-5 shadow-lg space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Google Sheet Live Mirror</span>
+                        <h2 class="text-lg font-extrabold text-white">CREW DAILY TIME RECORD (DTR)</h2>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="copySheetTableToClipboard('master')" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow transition">
+                            <i class="fa-regular fa-copy"></i>
+                            <span>Copy for Google Sheets</span>
+                        </button>
+                        <button onclick="exportCSV('Daily_Time_Record')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-download text-emerald-400"></i>
+                            <span>Download CSV</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Metadata & Shift Schedule Table (B2:I5 from Updated DTR) -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    <!-- Left: Cutoff Period & Pay Cycle (B2:E5) -->
+                    <div class="lg:col-span-5 bg-slate-950/80 rounded-xl p-3.5 border border-slate-800 space-y-2 text-xs">
+                        <div class="font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-1.5 mb-2">
+                            Cutoff Metadata (B2:E5)
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-400">Cutoff Period:</span>
+                            <span class="font-mono-clock font-bold text-white">2026-10-16 <span class="text-slate-500">to</span> 2026-10-31</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-400">Pay Cycle:</span>
+                            <span class="font-semibold text-emerald-400">2nd Half (16th – End)</span>
+                        </div>
+                        <div class="flex justify-between py-1">
+                            <span class="text-slate-400">Current Date:</span>
+                            <span class="font-mono-clock font-semibold text-sky-400" id="sheetMetaCurrentDate">2026-10-18</span>
+                        </div>
+                    </div>
+
+                    <!-- Right: Shift Schedule Table (F2:I5) -->
+                    <div class="lg:col-span-7 bg-slate-950/80 rounded-xl p-3.5 border border-slate-800 overflow-x-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead>
+                                <tr class="text-slate-400 border-b border-slate-800">
+                                    <th class="pb-2 font-bold">Shift Schedule</th>
+                                    <th class="pb-2 font-bold">Role / Type</th>
+                                    <th class="pb-2 font-bold">Expected In</th>
+                                    <th class="pb-2 font-bold">Fixed Out</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60">
+                                <tr>
+                                    <td class="py-2 font-bold text-white">Maricel</td>
+                                    <td class="py-2 text-slate-300">Standard Crew</td>
+                                    <td class="py-2 font-mono-clock text-emerald-400">10:30 AM</td>
+                                    <td class="py-2 font-mono-clock text-amber-400">08:00 PM</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 font-bold text-white">Pamela</td>
+                                    <td class="py-2 text-slate-300">Standard Crew</td>
+                                    <td class="py-2 font-mono-clock text-emerald-400">10:30 AM</td>
+                                    <td class="py-2 font-mono-clock text-amber-400">08:00 PM</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 font-bold text-white">Aileen</td>
+                                    <td class="py-2 text-amber-300">Opening Crew</td>
+                                    <td class="py-2 font-mono-clock text-emerald-400">08:00 AM</td>
+                                    <td class="py-2 font-mono-clock text-amber-400">05:00 PM</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Cutoff Period Selector (Oct 16–31, 2026 vs Historical Archive from Sept/Feb 2026) -->
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-400">Sheet Period:</span>
+                        <button onclick="setSheetPeriod('oct2026')" id="periodBtn-oct2026" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950">
+                            Oct 16 – Oct 31, 2026 (Current)
+                        </button>
+                        <button onclick="setSheetPeriod('sep2026')" id="periodBtn-sep2026" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700">
+                            Sep 16 – Sep 30, 2026 (Archive)
+                        </button>
+                    </div>
+                    <span class="text-[11px] text-slate-400">
+                        <i class="fa-solid fa-pen-to-square mr-1 text-emerald-400"></i>Tap any row cell to quick-edit or log time
+                    </span>
+                </div>
+
+                <!-- Master DTR Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-950 text-slate-300 border-b border-slate-800">
+                                <th class="py-2.5 px-3 font-bold">DATE</th>
+                                <th class="py-2.5 px-2 font-bold">DAY</th>
+                                <th class="py-2.5 px-2.5 font-bold text-emerald-300 border-l border-slate-800" colspan="2">MARICEL (10:30A–8:00P)</th>
+                                <th class="py-2.5 px-2.5 font-bold text-sky-300 border-l border-slate-800" colspan="2">PAMELA (10:30A–8:00P)</th>
+                                <th class="py-2.5 px-2.5 font-bold text-amber-300 border-l border-slate-800" colspan="2">AILEEN (8:00A–5:00P)</th>
+                            </tr>
+                            <tr class="bg-slate-900/90 text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                                <th class="py-1.5 px-3"> Cutoff Date</th>
+                                <th class="py-1.5 px-2">Weekday</th>
+                                <th class="py-1.5 px-2 border-l border-slate-800">Time In</th>
+                                <th class="py-1.5 px-2">Time Out</th>
+                                <th class="py-1.5 px-2 border-l border-slate-800">Time In</th>
+                                <th class="py-1.5 px-2">Time Out</th>
+                                <th class="py-1.5 px-2 border-l border-slate-800">Time In</th>
+                                <th class="py-1.5 px-2">Time Out</th>
+                            </tr>
+                        </thead>
+                        <tbody id="masterDtrTableBody" class="divide-y divide-slate-800/70 bg-slate-900/40">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: INDIVIDUAL CREW SHEETS (Updated_DTR_Maricel, Pamela, Aileen) -->
+        <section id="tab-crew" class="hidden space-y-4">
+            <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 sm:p-5 shadow-lg space-y-4">
+                <!-- Crew Sub-tab Selector -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <button onclick="selectIndividualCrewSheet('Maricel')" id="crewTabBtn-Maricel" class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-slate-950">
+                            Maricel.csv
+                        </button>
+                        <button onclick="selectIndividualCrewSheet('Pamela')" id="crewTabBtn-Pamela" class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+                            Pamela.csv
+                        </button>
+                        <button onclick="selectIndividualCrewSheet('Aileen')" id="crewTabBtn-Aileen" class="px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+                            Aileen.csv
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="copySheetTableToClipboard('individual')" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition">
+                            <i class="fa-regular fa-copy"></i>
+                            <span>Copy Crew Sheet</span>
+                        </button>
+                        <button onclick="exportIndividualCrewCSV()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-file-csv text-emerald-400"></i>
+                            <span id="downloadCrewCsvBtnText">Download Updated_DTR_Maricel.csv</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Crew Attendance KPI Summary Cards -->
+                <div id="individualCrewKpis" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <!-- Rendered dynamically -->
+                </div>
+
+                <!-- Individual Crew Detailed DTR Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                    <table class="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-950 text-slate-300 border-b border-slate-800">
+                                <th class="py-2.5 px-3 font-bold">Date</th>
+                                <th class="py-2.5 px-2 font-bold">Day</th>
+                                <th class="py-2.5 px-3 font-bold">Time In (PHT)</th>
+                                <th class="py-2.5 px-3 font-bold">Time Out (PHT)</th>
+                                <th class="py-2.5 px-3 font-bold">Status</th>
+                                <th class="py-2.5 px-3 font-bold">Late (Mins)</th>
+                                <th class="py-2.5 px-3 font-bold">Hours Worked</th>
+                                <th class="py-2.5 px-3 font-bold text-right">Quick Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="individualCrewTableBody" class="divide-y divide-slate-800/70 bg-slate-900/40">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: GOOGLE SHEET AUTO-FILL & OFFLINE SYNC ENGINE -->
+        <section id="tab-sync" class="hidden space-y-4">
+            <div class="rounded-2xl bg-slate-900 border border-slate-800 p-4 sm:p-5 shadow-lg space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Real-Time Cloud & Sheet Automation</span>
+                        <h2 class="text-lg font-extrabold text-white mt-0.5">Cloud Storage & Google Sheet Sync Center</h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            Every crew punch is automatically saved to shared cloud storage across devices and mirrors your <strong>Updated DTR</strong> (`Daily Time Record`, `Maricel`, `Pamela`, `Aileen`).
+                        </p>
+                    </div>
+                    <button onclick="forceCloudPushAll()" class="shrink-0 px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 shadow transition">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Push All to Cloud</span>
+                    </button>
+                </div>
+
+                <!-- Real-Time Cloud Storage Status & Multi-User Session Card -->
+                <div class="rounded-xl bg-slate-950 border border-slate-800 p-4 space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                                <i class="fa-solid fa-database"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <span>Shared Cloud Database</span>
+                                    <span id="syncTabCloudBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                        Connected
+                                    </span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Syncs Maricel, Pamela, and Aileen's DTR across all phones in real time</p>
+                            </div>
+                        </div>
+                        <div class="text-left sm:text-right">
+                            <span class="text-[10px] uppercase tracking-wider text-slate-500 block">Complete User ID</span>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <code id="syncTabUserId" class="font-mono-clock text-xs text-emerald-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 select-all">Loading...</code>
+                                <button onclick="copyUserIdToClipboard()" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Multi-Device Cloud Activity Feed -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-tower-broadcast text-emerald-400"></i>
+                                <span>Recent Cloud Punch Activity (All Devices)</span>
+                            </span>
+                            <span id="cloudLogCountBadge" class="text-[11px] text-slate-400">0 events</span>
+                        </div>
+                        <div id="cloudActivityLogList" class="max-h-44 overflow-y-auto space-y-1.5 text-xs bg-slate-900/70 rounded-lg p-2.5 border border-slate-800/80">
+                            <div class="text-slate-400">Listening for real-time crew punches...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. Offline Queue Box -->
+                <div class="rounded-xl bg-slate-950 border border-slate-800 p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white">Offline Punch Queue</h3>
+                                <p class="text-xs text-slate-400">Sign-ins & sign-outs recorded while offline</p>
+                            </div>
+                        </div>
+                        <button onclick="syncOfflineQueue()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>Sync Queue Now</span>
+                        </button>
+                    </div>
+                    <div id="offlineQueueListContainer" class="text-xs text-slate-400 bg-slate-900/80 rounded-lg p-3 border border-slate-800/80">
+                        All crew logs are currently synced with Updated DTR.
+                    </div>
+                </div>
+
+                <!-- 2. Auto-Fill from Attached CSV Files or Paste from Google Sheets -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Upload CSV File -->
+                    <div class="rounded-xl bg-slate-950 border border-slate-800 p-4 flex flex-col justify-between space-y-3">
+                        <div class="space-y-1">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-file-import text-emerald-400"></i>
+                                <span>Import / Auto-Fill from CSV File</span>
+                            </h3>
+                            <p class="text-xs text-slate-400">
+                                Select <code class="text-emerald-300">Updated_DTR_Daily_Time_Record.csv</code>, <code class="text-emerald-300">Updated_DTR_Maricel.csv</code>, <code class="text-emerald-300">Updated_DTR_Pamela.csv</code>, or <code class="text-emerald-300">Updated_DTR_Aileen.csv</code> to auto-fill records.
+                            </p>
+                        </div>
+                        <label class="cursor-pointer border-2 border-dashed border-slate-700 hover:border-emerald-500/70 rounded-xl p-4 text-center transition bg-slate-900/50 hover:bg-slate-900">
+                            <input type="file" id="csvFileInput" accept=".csv,.tsv,.txt" onchange="handleCsvFileUpload(event)" class="hidden">
+                            <i class="fa-solid fa-cloud-arrow-up text-2xl text-emerald-400 mb-1"></i>
+                            <div class="text-xs font-bold text-white">Tap to Upload DTR CSV File</div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">Auto-detects Master or Individual Crew format</div>
+                        </label>
+                    </div>
+
+                    <!-- Paste Directly from Google Sheets -->
+                    <div class="rounded-xl bg-slate-950 border border-slate-800 p-4 flex flex-col justify-between space-y-2.5">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-paste text-sky-400"></i>
+                                <span>Paste Rows from Google Sheets</span>
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                Copy cells from your Google Sheet and paste below to auto-populate crew times.
+                            </p>
+                        </div>
+                        <textarea id="pasteSheetTextarea" rows="3" placeholder="Example: 2026-10-18&#9;10:25 AM&#9;08:00 PM&#9;10:28 AM&#9;08:00 PM&#9;07:55 AM&#9;05:00 PM" class="w-full rounded-lg bg-slate-900 border border-slate-700 p-2.5 text-xs text-slate-200 font-mono-clock focus:outline-none focus:border-emerald-500"></textarea>
+                        <button onclick="handlePasteSheetData()" class="w-full py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition">
+                            Auto-Fill Pasted Rows
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Live Google Apps Script Webhook Integration -->
+                <div class="rounded-xl bg-slate-950 border border-slate-800 p-4 space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-link text-emerald-400"></i>
+                                <span>2-Way Google Sheet Live Sync (`Updated DTR`)</span>
+                            </h3>
+                            <p class="text-xs text-slate-400">
+                                Paste your deployed Google Apps Script Web App URL so every Sign-In/Sign-Out automatically writes to <strong>Daily Time Record</strong>, <strong>Maricel</strong>, <strong>Pamela</strong>, and <strong>Aileen</strong>—and pulls existing sheet rows on load.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button onclick="pullFromGoogleSheetWebhook()" class="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-xs font-semibold">
+                                <i class="fa-solid fa-cloud-arrow-down mr-1"></i>Pull Sheet Data
+                            </button>
+                            <button onclick="toggleAppsScriptModal(true)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 text-xs font-semibold">
+                                <i class="fa-solid fa-code mr-1"></i>Get 2-Way Script
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="url" id="webhookUrlInput" placeholder="https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec" class="flex-1 rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                        <button onclick="saveWebhookUrl()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">
+                            Connect Sheet URL
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. How to Activate & Make App Live for Crew (3 Options) -->
+                <div class="rounded-xl bg-gradient-to-br from-emerald-950/40 via-slate-950 to-slate-950 border border-emerald-500/30 p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Deployment & Activation</span>
+                            <h3 class="text-sm font-bold text-white">3 Ways to Activate & Make This App Live for Your Crew</h3>
+                        </div>
+                        <button onclick="toggleGoLiveModal(true)" class="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-extrabold hover:bg-emerald-400 transition">
+                            Open Step-by-Step Guide
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-1">
+                            <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-mobile-screen-button"></i>
+                                <span>Option 1: Free Mobile Link</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                Host this single HTML file on <strong>Netlify Drop</strong> or <strong>GitHub Pages</strong> in 30 seconds and let Maricel, Pamela & Aileen tap <em>"Add to Home Screen"</em>.
+                            </p>
+                        </div>
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-1">
+                            <div class="font-bold text-sky-400 flex items-center gap-1.5">
+                                <i class="fa-brands fa-google-drive"></i>
+                                <span>Option 2: Google Sheet Link</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                Add the <strong>2-Way Apps Script</strong> inside your <em>Updated DTR</em> Google Sheet so every Sign-In/Out updates your sheet cells automatically.
+                            </p>
+                        </div>
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-1">
+                            <div class="font-bold text-amber-400 flex items-center gap-1.5">
+                                <i class="fa-solid fa-tablet-screen-button"></i>
+                                <span>Option 3: Store Kiosk Mode</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                Keep open on a shared store phone/tablet. Works <strong>100% offline</strong> if Wi-Fi drops and syncs automatically when reconnected.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Mobile Navigation Bar -->
+    <nav class="fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-2 py-1.5">
+        <div class="max-w-md mx-auto grid grid-cols-4 gap-1">
+            <button onclick="switchBottomTab('punch')" id="navBtn-punch" class="flex flex-col items-center justify-center py-1.5 rounded-xl text-emerald-400 bg-emerald-500/10 font-bold transition">
+                <i class="fa-solid fa-fingerprint text-base"></i>
+                <span class="text-[11px] mt-0.5">Sign In/Out</span>
+            </button>
+            <button onclick="switchBottomTab('sheet')" id="navBtn-sheet" class="flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 font-medium transition">
+                <i class="fa-solid fa-table-list text-base"></i>
+                <span class="text-[11px] mt-0.5">Master DTR</span>
+            </button>
+            <button onclick="switchBottomTab('crew')" id="navBtn-crew" class="flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 font-medium transition">
+                <i class="fa-solid fa-user-tag text-base"></i>
+                <span class="text-[11px] mt-0.5">Crew Tabs</span>
+            </button>
+            <button onclick="switchBottomTab('sync')" id="navBtn-sync" class="relative flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 font-medium transition">
+                <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+                <span class="text-[11px] mt-0.5">Sheet Sync</span>
+                <span id="navSyncBadge" class="hidden absolute top-1 right-5 w-2 h-2 rounded-full bg-amber-400"></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Apps Script Helper Modal -->
+    <div id="appsScriptModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-brands fa-google-drive text-emerald-400"></i>
+                    <span>2-Way Google Sheets Auto-Sync Script (`Updated DTR`)</span>
+                </h3>
+                <button onclick="toggleAppsScriptModal(false)" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                1. Open your <strong>Updated DTR</strong> Google Sheet.<br>
+                2. Click <strong>Extensions &rarr; Apps Script</strong> and paste the code below.<br>
+                3. Click <strong>Deploy &rarr; New deployment &rarr; Web app</strong> (Execute as: <em>Me</em>, Who has access: <em>Anyone</em>).<br>
+                4. Paste the Web App URL into the <strong>Sheet Sync</strong> tab!
+            </p>
+            <pre id="appsScriptCodeBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] font-mono-clock text-emerald-300 overflow-x-auto">function doPost(e) {
+  const data = JSON.parse(e.postData.contents);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // 1. Update Individual Crew Tab (Maricel, Pamela, or Aileen)
+  const crewSheet = ss.getSheetByName(data.crew);
+  if (crewSheet) {
+    const values = crewSheet.getDataRange().getValues();
+    let updated = false;
+    for (let i = 1; i < values.length; i++) {
+      const rowDate = Utilities.formatDate(new Date(values[i][0]), "GMT+8", "yyyy-MM-dd");
+      if (rowDate === data.date || String(values[i][0]).indexOf(data.date) !== -1) {
+        crewSheet.getRange(i + 1, 3).setValue(data.timeIn);
+        crewSheet.getRange(i + 1, 4).setValue(data.timeOut);
+        crewSheet.getRange(i + 1, 5).setValue(data.status);
+        updated = true;
+        break;
+      }
+    }
+    if (!updated) {
+      crewSheet.appendRow([data.date, data.day, data.timeIn, data.timeOut, data.status]);
+    }
+  }
+
+  // 2. Update Master "Daily Time Record" Sheet
+  const masterSheet = ss.getSheetByName("Daily Time Record");
+  if (masterSheet) {
+    const colMap = { "Maricel": 3, "Pamela": 5, "Aileen": 7 };
+    const startCol = colMap[data.crew];
+    if (startCol) {
+      const mValues = masterSheet.getDataRange().getValues();
+      for (let r = 5; r < mValues.length; r++) {
+        const cellText = String(mValues[r][0] || mValues[r][1]);
+        if (cellText.indexOf(data.date) !== -1) {
+          masterSheet.getRange(r + 1, startCol).setValue(data.timeIn);
+          masterSheet.getRange(r + 1, startCol + 1).setValue(data.timeOut);
+          break;
+        }
+      }
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const result = {};
+  ["Maricel", "Pamela", "Aileen"].forEach(function(crew) {
+    const sheet = ss.getSheetByName(crew);
+    if (sheet) result[crew] = sheet.getDataRange().getDisplayValues();
+  });
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, data: result }))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+            <div class="flex justify-end gap-2">
+                <button onclick="copyAppsScriptSnippet()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
+                    <i class="fa-regular fa-copy mr-1"></i>Copy 2-Way Script
+                </button>
+                <button onclick="toggleAppsScriptModal(false)" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Go Live & Activation Guide Modal -->
+    <div id="goLiveModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-rocket text-emerald-400"></i>
+                    <span>How to Activate & Make Your DTR App Live</span>
+                </h3>
+                <button onclick="toggleGoLiveModal(false)" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-300">
+                <div class="p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-500/40 space-y-1">
+                    <div class="font-bold text-emerald-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Works Both Online & Offline Automatically</span>
+                    </div>
+                    <p class="text-slate-300 leading-relaxed">
+                        • <strong>When Online:</strong> Every tap on <em>SIGN IN</em> or <em>SIGN OUT</em> immediately syncs to shared Cloud Storage across all devices and pushes to your <strong>Updated DTR</strong> Google Sheet.<br>
+                        • <strong>When Offline:</strong> If a crew member has no mobile data or Wi-Fi, their punch is saved in the <strong>Offline Queue</strong> with the exact timestamp and automatically syncs as soon as they reconnect.
+                    </p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <div class="font-bold text-white text-sm">Step 1: Publish as a Live Mobile App Link (Free in 30 Seconds)</div>
+                    <p class="text-slate-400 leading-relaxed">
+                        1. Save this code as <code class="text-emerald-300">index.html</code> on your computer or phone.<br>
+                        2. Go to <strong>app.netlify.com/drop</strong> (or GitHub Pages / Vercel) and drag-and-drop the file.<br>
+                        3. You will get an instant live link (e.g., <code class="text-sky-300">https://crew-dtr.netlify.app</code>) to send to <strong>Maricel, Pamela, and Aileen</strong> via Messenger or Viber.
+                    </p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <div class="font-bold text-white text-sm">Step 2: Add to Phone Home Screen (Works Offline)</div>
+                    <p class="text-slate-400 leading-relaxed">
+                        • <strong>Android (Chrome):</strong> Tap the 3-dot menu &rarr; <strong>Add to Home screen / Install app</strong>.<br>
+                        • <strong>iPhone (Safari):</strong> Tap the <strong>Share</strong> icon &rarr; <strong>Add to Home Screen</strong>.<br>
+                        It opens full-screen like a native app on each crew member's phone!
+                    </p>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <div class="font-bold text-white text-sm">Step 3: Connect Direct Auto-Fill to Your `Updated DTR` Google Sheet</div>
+                    <p class="text-slate-400 leading-relaxed">
+                        Click <strong>Get 2-Way Script</strong> in the <em>Sheet Sync</em> tab, paste it into <strong>Extensions &rarr; Apps Script</strong> inside your Google Sheet, deploy as a Web App, and paste the URL into this app. You can also upload or download CSVs anytime with one tap.
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button onclick="toggleGoLiveModal(false); switchBottomTab('sync');" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
+                    Go to Sheet Sync Settings
+                </button>
+                <button onclick="toggleGoLiveModal(false)" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">
+                    Got It
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Non-Blocking Toast Banner -->
+    <div id="toastContainer" class="fixed top-16 right-4 z-50 flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
+
+    <!-- Hidden Textarea for Reliable iFrame Clipboard Copy -->
+    <textarea id="clipboardHelper" class="sr-only" aria-hidden="true"></textarea>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        /**
+         * FIREBASE & CLOUD STORAGE INITIALIZATION
+         */
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'crew-dtr-mobile-app';
+        let app = null;
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let currentUserId = null;
+        let isCloudReady = false;
+        let hasSeededInitialCloud = false;
+
+        /**
+         * CREW SCHEDULE CONFIGURATION (Exact match from "Updated DTR" -> "Daily Time Record" B2:I5)
+         */
+        const CREW_PROFILES = {
+            Maricel: {
+                name: 'Maricel',
+                role: 'Standard Crew',
+                expectedIn: '10:30 AM',
+                expectedInMinutes: 10 * 60 + 30, // 630 mins (10:30)
+                fixedOut: '08:00 PM',
+                fixedOut24: '20:00',
+                expectedIn24: '10:30',
+                color: 'emerald',
+                avatarBg: 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+            },
+            Pamela: {
+                name: 'Pamela',
+                role: 'Standard Crew',
+                expectedIn: '10:30 AM',
+                expectedInMinutes: 10 * 60 + 30, // 630 mins (10:30)
+                fixedOut: '08:00 PM',
+                fixedOut24: '20:00',
+                expectedIn24: '10:30',
+                color: 'sky',
+                avatarBg: 'bg-sky-500/20 border-sky-500/40 text-sky-300'
+            },
+            Aileen: {
+                name: 'Aileen',
+                role: 'Opening Crew',
+                expectedIn: '08:00 AM',
+                expectedInMinutes: 8 * 60, // 480 mins (08:00)
+                fixedOut: '05:00 PM',
+                fixedOut24: '17:00',
+                expectedIn24: '08:00',
+                color: 'amber',
+                avatarBg: 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+            }
+        };
+
+        /**
+         * APPLICATION STATE
+         * Pre-populated with the exact Cutoff Period (2026-10-16 to 2026-10-31) and Current Date (2026-10-18)
+         * plus the September 16-30, 2026 archive from the attached DTR sheet.
+         */
+        const state = {
+            selectedCrew: 'Maricel',
+            activeDate: '2026-10-18', // Matches Updated DTR Current Date: 2026-10-18
+            activePeriod: 'oct2026',  // 'oct2026' or 'sep2026'
+            individualCrewTab: 'Maricel',
+            isSimulatedOffline: false,
+            webhookUrl: '',
+            offlineQueue: [],
+            cloudActivityLogs: [],
+            records: {
+                oct2026: {},
+                sep2026: {}
+            }
+        };
+
+        /**
+         * Initialize Firebase Auth FIRST, then attach Firestore listeners (Rule 3)
+         */
+        async function initCloudStorage() {
+            try {
+                if (typeof __firebase_config === 'undefined' || !__firebase_config) {
+                    updateCloudStatusUI('local', 'Local Mode (No Cloud Config)');
+                    return;
+                }
+
+                const firebaseConfig = JSON.parse(__firebase_config);
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // RULE 3: Authenticate FIRST before any Firestore operation
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    if (user) {
+                        currentUserId = user.uid;
+                        document.getElementById('headerUserIdDisplay').textContent = currentUserId;
+                        document.getElementById('syncTabUserId').textContent = currentUserId;
+                        isCloudReady = true;
+                        startCloudListeners();
+                    }
+                });
+            } catch (err) {
+                console.error('Cloud initialization error:', err);
+                updateCloudStatusUI('error', 'Cloud Offline');
+            }
+        }
+
+        /**
+         * Listen to public shared DTR records and live punch logs (Rules 1 & 2)
+         */
+        function startCloudListeners() {
+            if (!currentUser || !db) return;
+
+            updateCloudStatusUI('syncing', 'Syncing Cloud...');
+
+            // RULE 1: Strict public path /artifacts/{appId}/public/data/dtr_days
+            const dtrDaysCol = collection(db, 'artifacts', appId, 'public', 'data', 'dtr_days');
+
+            // RULE 2: Simple collection query without orderBy/where/limit
+            onSnapshot(
+                dtrDaysCol,
+                async (snapshot) => {
+                    if (snapshot.empty && !hasSeededInitialCloud) {
+                        hasSeededInitialCloud = true;
+                        await pushAllLocalRecordsToCloud();
+                        updateCloudStatusUI('online', 'Cloud Seeded & Live');
+                        return;
+                    }
+
+                    snapshot.forEach((docSnap) => {
+                        const data = docSnap.data();
+                        const periodKey = data.period || (data.date?.startsWith('2026-09') ? 'sep2026' : 'oct2026');
+                        if (data.date && state.records[periodKey]) {
+                            state.records[periodKey][data.date] = {
+                                date: data.date,
+                                label: data.label || data.date,
+                                day: data.day || '',
+                                Maricel: data.Maricel || { timeIn: '', timeOut: '' },
+                                Pamela:  data.Pamela  || { timeIn: '', timeOut: '' },
+                                Aileen:  data.Aileen  || { timeIn: '', timeOut: '' }
+                            };
+                        }
+                    });
+
+                    const syncTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    document.getElementById('lastCloudSyncLabel').textContent = `Last cloud sync: ${syncTime}`;
+                    updateCloudStatusUI('online', 'Cloud Live • Synced');
+                    refreshAllViews();
+                },
+                (error) => {
+                    console.error('Error listening to dtr_days:', error);
+                    updateCloudStatusUI('error', 'Cloud Sync Error');
+                }
+            );
+
+            // Listen to real-time punch activity logs across devices
+            const logsCol = collection(db, 'artifacts', appId, 'public', 'data', 'dtr_logs');
+            onSnapshot(
+                logsCol,
+                (snapshot) => {
+                    const logs = [];
+                    snapshot.forEach((docSnap) => {
+                        logs.push({ id: docSnap.id, ...docSnap.data() });
+                    });
+                    // Sort in JavaScript memory (descending by timestampMs) per Rule 2
+                    logs.sort((a, b) => (b.timestampMs || 0) - (a.timestampMs || 0));
+                    state.cloudActivityLogs = logs.slice(0, 30);
+                    renderCloudActivityLogs();
+                },
+                (error) => {
+                    console.error('Error listening to dtr_logs:', error);
+                }
+            );
+        }
+
+        /**
+         * Save a single day's DTR record to Firestore public collection
+         */
+        async function saveDayRecordToCloud(periodKey, dayRecord) {
+            if (!currentUser || !db || !dayRecord) return;
+            const docId = `${periodKey}_${dayRecord.date}`;
+            const dayDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'dtr_days', docId);
+            await setDoc(dayDocRef, {
+                period: periodKey,
+                date: dayRecord.date,
+                label: dayRecord.label,
+                day: dayRecord.day,
+                Maricel: dayRecord.Maricel || { timeIn: '', timeOut: '' },
+                Pamela:  dayRecord.Pamela  || { timeIn: '', timeOut: '' },
+                Aileen:  dayRecord.Aileen  || { timeIn: '', timeOut: '' },
+                updatedAt: Date.now(),
+                updatedBy: currentUserId || 'anonymous'
+            });
+        }
+
+        /**
+         * Push all local records (Oct 2026 & Sep 2026) to Cloud Storage
+         */
+        async function pushAllLocalRecordsToCloud() {
+            if (!currentUser || !db) return;
+            const promises = [];
+            ['oct2026', 'sep2026'].forEach((periodKey) => {
+                Object.values(state.records[periodKey]).forEach((dayRecord) => {
+                    promises.push(saveDayRecordToCloud(periodKey, dayRecord));
+                });
+            });
+            await Promise.all(promises);
+        }
+
+        async function forceCloudPushAll() {
+            if (!currentUser || !db) {
+                showToast('Cloud storage is still authenticating.', 'amber');
+                return;
+            }
+            if (state.isSimulatedOffline || !navigator.onLine) {
+                showToast('Switch to Online Mode first to push records to Cloud.', 'amber');
+                return;
+            }
+            updateCloudStatusUI('syncing', 'Uploading All...');
+            await pushAllLocalRecordsToCloud();
+            updateCloudStatusUI('online', 'Cloud Live • Synced');
+            showToast('All DTR cutoff records pushed to shared Cloud Storage!', 'emerald');
+        }
+
+        function updateCloudStatusUI(mode, text) {
+            const pill = document.getElementById('cloudStatusPill');
+            const icon = document.getElementById('cloudStatusIcon');
+            const label = document.getElementById('cloudStatusText');
+            const tabBadge = document.getElementById('syncTabCloudBadge');
+
+            if (pill && label) {
+                label.textContent = text;
+                if (mode === 'online') {
+                    pill.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-950/80 border border-sky-700/50 text-sky-300 text-xs font-semibold';
+                    icon.className = 'fa-solid fa-cloud-check text-emerald-400';
+                } else if (mode === 'syncing') {
+                    pill.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-950/80 border border-sky-600/60 text-sky-200 text-xs font-semibold';
+                    icon.className = 'fa-solid fa-arrows-rotate fa-spin text-sky-400';
+                } else {
+                    pill.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-950/80 border border-amber-700/50 text-amber-300 text-xs font-semibold';
+                    icon.className = 'fa-solid fa-cloud-bolt text-amber-400';
+                }
+            }
+            if (tabBadge) {
+                tabBadge.textContent = text;
+            }
+        }
+
+        function renderCloudActivityLogs() {
+            const container = document.getElementById('cloudActivityLogList');
+            const badge = document.getElementById('cloudLogCountBadge');
+            if (!container) return;
+
+            badge.textContent = `${state.cloudActivityLogs.length} cloud event(s)`;
+            if (state.cloudActivityLogs.length === 0) {
+                container.innerHTML = `<div class="text-slate-400 py-1">No cloud punch events logged yet. Sign in or out to test live multi-device sync!</div>`;
+                return;
+            }
+
+            container.innerHTML = state.cloudActivityLogs.map((log) => `
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 bg-slate-950/90 px-3 py-2 rounded-lg border border-slate-800">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-bold text-white">${log.crew}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-semibold">${log.status || 'Updated'}</span>
+                        <span class="text-slate-400 font-mono-clock">${log.date}</span>
+                        <span class="font-mono-clock text-emerald-400">In: ${log.timeIn || '—'}</span>
+                        <span class="font-mono-clock text-amber-300">Out: ${log.timeOut || '—'}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px] text-slate-500 font-mono-clock">
+                        <span>User: ${log.userId || 'anon'}</span>
+                        <span>•</span>
+                        <span class="text-slate-400">${log.displayTime || ''}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function copyUserIdToClipboard() {
+            if (!currentUserId) return;
+            copyTextToClipboard(currentUserId);
+            showToast('Copied complete Device Session ID to clipboard!', 'sky');
+        }
+
+        /**
+         * Initialize Cutoff Period 2026-10-16 to 2026-10-31 (Pay Cycle: 2nd Half)
+         * and September 16-30, 2026 historical data from the attached Google Sheet
+         */
+        function initializeSheetData() {
+            const octDates = [
+                { date: '2026-10-16', label: 'Oct 16, 2026', day: 'Friday',
+                  Maricel: { timeIn: '10:26 AM', timeOut: '08:00 PM' },
+                  Pamela:  { timeIn: '10:29 AM', timeOut: '08:00 PM' },
+                  Aileen:  { timeIn: '07:56 AM', timeOut: '05:00 PM' }
+                },
+                { date: '2026-10-17', label: 'Oct 17, 2026', day: 'Saturday',
+                  Maricel: { timeIn: '10:34 AM', timeOut: '08:00 PM' },
+                  Pamela:  { timeIn: '10:22 AM', timeOut: '08:00 PM' },
+                  Aileen:  { timeIn: '07:58 AM', timeOut: '05:00 PM' }
+                },
+                { date: '2026-10-18', label: 'Oct 18, 2026', day: 'Sunday',
+                  // Current Date in Updated DTR: Aileen (Opening Crew) & Pamela already signed in; Maricel ready to sign in!
+                  Maricel: { timeIn: '', timeOut: '' },
+                  Pamela:  { timeIn: '10:25 AM', timeOut: '' },
+                  Aileen:  { timeIn: '07:55 AM', timeOut: '' }
+                },
+                { date: '2026-10-19', label: 'Oct 19, 2026', day: 'Monday' },
+                { date: '2026-10-20', label: 'Oct 20, 2026', day: 'Tuesday' },
+                { date: '2026-10-21', label: 'Oct 21, 2026', day: 'Wednesday' },
+                { date: '2026-10-22', label: 'Oct 22, 2026', day: 'Thursday' },
+                { date: '2026-10-23', label: 'Oct 23, 2026', day: 'Friday' },
+                { date: '2026-10-24', label: 'Oct 24, 2026', day: 'Saturday' },
+                { date: '2026-10-25', label: 'Oct 25, 2026', day: 'Sunday' },
+                { date: '2026-10-26', label: 'Oct 26, 2026', day: 'Monday' },
+                { date: '2026-10-27', label: 'Oct 27, 2026', day: 'Tuesday' },
+                { date: '2026-10-28', label: 'Oct 28, 2026', day: 'Wednesday' },
+                { date: '2026-10-29', label: 'Oct 29, 2026', day: 'Thursday' },
+                { date: '2026-10-30', label: 'Oct 30, 2026', day: 'Friday' },
+                { date: '2026-10-31', label: 'Oct 31, 2026', day: 'Saturday' }
+            ];
+
+            octDates.forEach(item => {
+                state.records.oct2026[item.date] = {
+                    date: item.date,
+                    label: item.label,
+                    day: item.day,
+                    Maricel: item.Maricel || { timeIn: '', timeOut: '' },
+                    Pamela:  item.Pamela  || { timeIn: '', timeOut: '' },
+                    Aileen:  item.Aileen  || { timeIn: '', timeOut: '' }
+                };
+            });
+
+            // Historical September 16-30, 2026 data from user's attached sheet
+            const sepRaw = [
+                ['2026-09-16', 'Sep 16, 2026', 'Wednesday', '10:46 AM', '08:00 PM', 'Day Off', 'Day Off', '07:55 AM', '05:00 PM'],
+                ['2026-09-17', 'Sep 17, 2026', 'Thursday',  '10:55 AM', '08:00 PM', '10:45 AM', '08:00 PM', '07:59 AM', '05:00 PM'],
+                ['2026-09-18', 'Sep 18, 2026', 'Friday',    'Day Off',  'Day Off',  'Day Off',  'Day Off',  '08:05 AM', '05:00 PM'],
+                ['2026-09-19', 'Sep 19, 2026', 'Saturday',  '10:51 AM', '08:00 PM', 'Day Off',  'Day Off',  '07:58 AM', '05:00 PM'],
+                ['2026-09-20', 'Sep 20, 2026', 'Sunday',    '10:58 AM', '08:00 PM', '10:11 AM', '08:00 PM', 'Day Off',  'Day Off'],
+                ['2026-09-21', 'Sep 21, 2026', 'Monday',    '10:30 AM', '08:00 PM', 'Day Off',  'Day Off',  '08:05 AM', '05:00 PM'],
+                ['2026-09-22', 'Sep 22, 2026', 'Tuesday',   'Day Off',  'Day Off',  '10:37 AM', '08:00 PM', '07:55 AM', '05:00 PM'],
+                ['2026-09-23', 'Sep 23, 2026', 'Wednesday', '10:50 AM', '08:00 PM', '10:02 AM', '08:00 PM', '07:56 AM', '05:00 PM'],
+                ['2026-09-24', 'Sep 24, 2026', 'Thursday',  '11:00 AM', '08:00 PM', '11:00 AM', '08:00 PM', '07:57 AM', '05:00 PM'],
+                ['2026-09-25', 'Sep 25, 2026', 'Friday',    '10:59 AM', '08:00 PM', '10:33 AM', '08:00 PM', '07:59 AM', '05:00 PM'],
+                ['2026-09-26', 'Sep 26, 2026', 'Saturday',  '10:30 AM', '08:00 PM', '10:03 AM', '08:00 PM', '07:55 AM', '05:00 PM'],
+                ['2026-09-27', 'Sep 27, 2026', 'Sunday',    'Day Off',  'Day Off',  '10:30 AM', '08:00 PM', 'Day Off',  'Day Off'],
+                ['2026-09-28', 'Sep 28, 2026', 'Monday',    '10:45 AM', '08:00 PM', '10:20 AM', '08:00 PM', '07:50 AM', '05:00 PM'],
+                ['2026-09-29', 'Sep 29, 2026', 'Tuesday',   'Day Off',  'Day Off',  '10:46 AM', '08:00 PM', '07:58 AM', '05:00 PM'],
+                ['2026-09-30', 'Sep 30, 2026', 'Wednesday', '10:50 AM', '08:00 PM', '10:05 AM', '08:00 PM', '08:05 AM', '05:00 PM']
+            ];
+
+            sepRaw.forEach(r => {
+                state.records.sep2026[r[0]] = {
+                    date: r[0],
+                    label: r[1],
+                    day: r[2],
+                    Maricel: { timeIn: r[3], timeOut: r[4] },
+                    Pamela:  { timeIn: r[5], timeOut: r[6] },
+                    Aileen:  { timeIn: r[7], timeOut: r[8] }
+                };
+            });
+        }
+
+        /**
+         * Parse "10:35 AM" or "07:55 AM" or "10:35" into minutes since midnight
+         */
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr || timeStr === 'Day Off' || timeStr === 'Off' || timeStr === '--:--') return null;
+            const cleaned = timeStr.replace('🚨', '').trim();
+            const ampmMatch = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+            if (!ampmMatch) return null;
+            let hours = parseInt(ampmMatch[1], 10);
+            const mins = parseInt(ampmMatch[2], 10);
+            const period = ampmMatch[3] ? ampmMatch[3].toUpperCase() : null;
+
+            if (period === 'PM' && hours < 12) hours += 12;
+            if (period === 'AM' && hours === 12) hours = 0;
+            return hours * 60 + mins;
+        }
+
+        /**
+         * Format 24h "HH:MM" into "hh:mm AM/PM"
+         */
+        function format24To12Hour(time24) {
+            if (!time24) return '';
+            const [hStr, mStr] = time24.split(':');
+            let h = parseInt(hStr, 10);
+            const m = parseInt(mStr, 10);
+            const period = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            if (h === 0) h = 12;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+        }
+
+        /**
+         * Check if a Crew Member's Time In is Late compared to their Expected In
+         */
+        function evaluateAttendance(crewName, timeInStr, timeOutStr) {
+            const profile = CREW_PROFILES[crewName];
+            if (!timeInStr && !timeOutStr) {
+                return { status: 'Pending', isLate: false, lateMinutes: 0, hoursWorked: 0, badgeClass: 'bg-slate-800 text-slate-400' };
+            }
+            if (timeInStr === 'Day Off' || timeOutStr === 'Day Off') {
+                return { status: 'Day Off', isLate: false, lateMinutes: 0, hoursWorked: 0, badgeClass: 'bg-sky-500/15 text-sky-300 border border-sky-500/30' };
+            }
+
+            const inMins = parseTimeToMinutes(timeInStr);
+            const outMins = parseTimeToMinutes(timeOutStr);
+            const isLate = inMins !== null && inMins > profile.expectedInMinutes;
+            const lateMinutes = isLate ? (inMins - profile.expectedInMinutes) : 0;
+
+            let hoursWorked = 0;
+            if (inMins !== null && outMins !== null && outMins > inMins) {
+                hoursWorked = +((outMins - inMins) / 60).toFixed(1);
+            }
+
+            if (timeInStr && !timeOutStr) {
+                return {
+                    status: isLate ? `On Duty (Late ${lateMinutes}m)` : 'On Duty',
+                    isLate,
+                    lateMinutes,
+                    hoursWorked: 0,
+                    badgeClass: isLate
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                };
+            }
+
+            return {
+                status: isLate ? `Completed (Late ${lateMinutes}m)` : 'Completed • On Time',
+                isLate,
+                lateMinutes,
+                hoursWorked,
+                badgeClass: isLate
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                    : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+            };
+        }
+
+        /**
+         * Format Time In with the Google Sheet's signature 🚨 icon if late
+         */
+        function formatSheetTimeIn(crewName, timeInStr) {
+            if (!timeInStr) return '<span class="text-slate-600">—</span>';
+            if (timeInStr === 'Day Off') return '<span class="text-sky-400 font-semibold">Day Off</span>';
+            const clean = timeInStr.replace('🚨', '').trim();
+            const info = evaluateAttendance(crewName, clean, '');
+            if (info.isLate) {
+                return `<span class="text-rose-400 font-bold font-mono-clock">🚨 ${clean}</span>`;
+            }
+            return `<span class="text-emerald-400 font-semibold font-mono-clock">${clean}</span>`;
+        }
+
+        function formatSheetTimeOut(timeOutStr) {
+            if (!timeOutStr) return '<span class="text-slate-600">—</span>';
+            if (timeOutStr === 'Day Off') return '<span class="text-sky-400 font-semibold">Day Off</span>';
+            return `<span class="text-amber-300 font-mono-clock">${timeOutStr}</span>`;
+        }
+
+        /**
+         * Populate the Active Date dropdown from the current Oct 16-31 cutoff
+         */
+        function renderDateSelector() {
+            const select = document.getElementById('activeDateSelect');
+            const dates = Object.values(state.records.oct2026);
+            select.innerHTML = dates.map(d => {
+                const isToday = d.date === '2026-10-18';
+                return `<option value="${d.date}" ${d.date === state.activeDate ? 'selected' : ''}>
+                    ${d.label} (${d.day.slice(0, 3)})${isToday ? ' • Today' : ''}
+                </option>`;
+            }).join('');
+        }
+
+        /**
+         * Render the 3 Crew Selector Cards (Maricel, Pamela, Aileen)
+         */
+        function renderCrewSelectorCards() {
+            const container = document.getElementById('crewSelectorGrid');
+            const dayRecord = getActiveDayRecord();
+            let loggedInCount = 0;
+
+            const html = Object.keys(CREW_PROFILES).map(name => {
+                const p = CREW_PROFILES[name];
+                const rec = dayRecord[name] || { timeIn: '', timeOut: '' };
+                const isSelected = state.selectedCrew === name;
+                const evalInfo = evaluateAttendance(name, rec.timeIn, rec.timeOut);
+
+                if (rec.timeIn && rec.timeIn !== 'Day Off') loggedInCount++;
+
+                let dotColor = 'bg-slate-600';
+                let statusShort = 'Not In';
+                if (rec.timeIn === 'Day Off') {
+                    dotColor = 'bg-sky-400';
+                    statusShort = 'Day Off';
+                } else if (rec.timeIn && !rec.timeOut) {
+                    dotColor = 'bg-emerald-400';
+                    statusShort = 'On Duty';
+                } else if (rec.timeIn && rec.timeOut) {
+                    dotColor = 'bg-amber-400';
+                    statusShort = 'Signed Out';
+                }
+
+                return `
+                <button onclick="selectCrew('${name}')" class="text-left p-3 sm:p-4 rounded-2xl border transition-all relative overflow-hidden ${
+                    isSelected
+                        ? 'bg-slate-800/95 border-emerald-500 ring-2 ring-emerald-500/30 shadow-lg'
+                        : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
+                }">
+                    <div class="flex items-center justify-between gap-1 mb-2">
+                        <div class="w-9 h-9 rounded-xl border flex items-center justify-center font-extrabold text-sm ${p.avatarBg}">
+                            ${name.charAt(0)}
+                        </div>
+                        <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-950/90 text-slate-300 border border-slate-800">
+                            <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
+                            ${statusShort}
+                        </span>
+                    </div>
+                    <div class="font-extrabold text-sm sm:text-base text-white truncate">${name}</div>
+                    <div class="text-[11px] text-slate-400 truncate">${p.role}</div>
+                    <div class="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono-clock text-slate-300">
+                        <span>In: ${rec.timeIn ? rec.timeIn.replace(' AM', 'A').replace(' PM', 'P') : '--'}</span>
+                        <span>Out: ${rec.timeOut ? rec.timeOut.replace(' AM', 'A').replace(' PM', 'P') : '--'}</span>
+                    </div>
+                </button>`;
+            }).join('');
+
+            container.innerHTML = html;
+            document.getElementById('onDutySummaryBadge').textContent = `${loggedInCount} of 3 Logged In (${ dayRecord.label })`;
+        }
+
+        /**
+         * Render the Main Punch Console for the currently selected Crew Member & Date
+         */
+        function renderPunchConsole() {
+            const name = state.selectedCrew;
+            const profile = CREW_PROFILES[name];
+            const dayRecord = getActiveDayRecord();
+            const crewRec = dayRecord[name] || { timeIn: '', timeOut: '' };
+            const evalInfo = evaluateAttendance(name, crewRec.timeIn, crewRec.timeOut);
+
+            // Update Avatar & Header
+            const avatarEl = document.getElementById('selectedCrewAvatar');
+            avatarEl.className = `w-14 h-14 rounded-2xl border flex items-center justify-center text-xl font-extrabold shadow-inner ${profile.avatarBg}`;
+            avatarEl.textContent = name.charAt(0);
+
+            document.getElementById('selectedCrewName').textContent = name;
+            document.getElementById('selectedCrewRole').textContent = profile.role;
+            document.getElementById('selectedCrewExpectedIn').textContent = profile.expectedIn;
+            document.getElementById('selectedCrewFixedOut').textContent = profile.fixedOut;
+            document.getElementById('fixedOutHintText').textContent = profile.fixedOut;
+
+            const statusBadge = document.getElementById('selectedCrewStatusBadge');
+            statusBadge.className = `text-xs font-bold px-2.5 py-0.5 rounded-full ${evalInfo.badgeClass}`;
+            statusBadge.textContent = evalInfo.status;
+
+            // Update Current Record Stamps
+            document.getElementById('currentRecordTimeIn').innerHTML = crewRec.timeIn
+                ? (evalInfo.isLate ? `🚨 ${crewRec.timeIn}` : crewRec.timeIn)
+                : '--:--';
+            document.getElementById('currentRecordTimeOut').textContent = crewRec.timeOut || '--:--';
+
+            // Update Button Subtexts & States
+            const useFixedOut = document.getElementById('useFixedOutToggle').checked;
+            document.getElementById('signInSubtext').innerHTML = crewRec.timeIn && crewRec.timeIn !== 'Day Off'
+                ? `Signed in at <strong>${crewRec.timeIn}</strong> (Tap to update)`
+                : `Tap to log arrival time for <strong>${name}</strong>`;
+
+            document.getElementById('signOutSubtext').innerHTML = useFixedOut
+                ? `Tap to log Fixed Out (<strong>${profile.fixedOut}</strong>)`
+                : `Tap to log current departure time`;
+
+            document.getElementById('lateIndicatorText').innerHTML = evalInfo.isLate
+                ? `<span class="text-rose-400 font-bold">🚨 Late by ${evalInfo.lateMinutes} mins (Expected ${profile.expectedIn})</span>`
+                : `On-time shift threshold: <span class="text-slate-200 font-semibold">${profile.expectedIn}</span>`;
+
+            // Render Today's All-Crew Snapshot List
+            document.getElementById('snapshotDateTitle').textContent = `${dayRecord.label} (${dayRecord.day})`;
+            const snapshotContainer = document.getElementById('todayCrewSnapshotList');
+            snapshotContainer.innerHTML = Object.keys(CREW_PROFILES).map(cName => {
+                const cProf = CREW_PROFILES[cName];
+                const cRec = dayRecord[cName] || { timeIn: '', timeOut: '' };
+                const cEval = evaluateAttendance(cName, cRec.timeIn, cRec.timeOut);
+                return `
+                <div onclick="selectCrew('${cName}')" class="py-3 px-2 flex items-center justify-between gap-2 hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl border flex items-center justify-center font-bold text-xs ${cProf.avatarBg}">
+                            ${cName.charAt(0)}
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-white flex items-center gap-2">
+                                <span>${cName}</span>
+                                <span class="text-[10px] font-medium text-slate-400">${cProf.expectedIn} – ${cProf.fixedOut}</span>
+                            </div>
+                            <span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md mt-0.5 ${cEval.badgeClass}">
+                                ${cEval.status}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 text-right font-mono-clock text-xs">
+                        <div>
+                            <span class="block text-[10px] text-slate-500">IN</span>
+                            <span class="${cEval.isLate ? 'text-rose-400 font-bold' : 'text-emerald-400 font-semibold'}">${cRec.timeIn ? (cEval.isLate ? '🚨 ' + cRec.timeIn : cRec.timeIn) : '—'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-slate-500">OUT</span>
+                            <span class="text-amber-300 font-semibold">${cRec.timeOut || '—'}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        /**
+         * Get active date record object from Oct 2026
+         */
+        function getActiveDayRecord() {
+            return state.records.oct2026[state.activeDate];
+        }
+
+        /**
+         * Determine the timestamp to record based on the selected mode (Live Clock, Expected Shift Time, or Custom Time)
+         */
+        function resolvePunchTime(type, crewName) {
+            const profile = CREW_PROFILES[crewName];
+            const mode = document.getElementById('timeStampMode').value;
+            const useFixedOut = document.getElementById('useFixedOutToggle').checked;
+
+            if (type === 'OUT' && useFixedOut && mode !== 'custom') {
+                return profile.fixedOut;
+            }
+            if (mode === 'expected') {
+                return type === 'IN' ? profile.expectedIn : profile.fixedOut;
+            }
+            if (mode === 'custom') {
+                const val = document.getElementById('manualTimeInput').value;
+                return format24To12Hour(val || profile.expectedIn24);
+            }
+
+            // Default: Current live PHT time
+            const now = new Date();
+            return now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        /**
+         * Handle One-Tap SIGN IN or SIGN OUT
+         */
+        function handleCrewPunch(type) {
+            const crewName = state.selectedCrew;
+            const dayRecord = getActiveDayRecord();
+            if (!dayRecord[crewName]) {
+                dayRecord[crewName] = { timeIn: '', timeOut: '' };
+            }
+
+            const stampedTime = resolvePunchTime(type, crewName);
+
+            if (type === 'IN') {
+                dayRecord[crewName].timeIn = stampedTime;
+                if (dayRecord[crewName].timeOut === 'Day Off') {
+                    dayRecord[crewName].timeOut = '';
+                }
+            } else {
+                // If signing out without signing in first, also fill expected in or keep clean
+                if (!dayRecord[crewName].timeIn || dayRecord[crewName].timeIn === 'Day Off') {
+                    dayRecord[crewName].timeIn = CREW_PROFILES[crewName].expectedIn;
+                }
+                dayRecord[crewName].timeOut = stampedTime;
+            }
+
+            const evalInfo = evaluateAttendance(crewName, dayRecord[crewName].timeIn, dayRecord[crewName].timeOut);
+            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, dayRecord[crewName].timeIn, dayRecord[crewName].timeOut, evalInfo.status);
+
+            refreshAllViews();
+
+            const actionLabel = type === 'IN' ? 'Signed In' : 'Signed Out';
+            const lateNote = (type === 'IN' && evalInfo.isLate) ? ` (🚨 Late ${evalInfo.lateMinutes}m)` : '';
+            showToast(`${crewName} ${actionLabel} at ${stampedTime}${lateNote}`, type === 'IN' ? 'emerald' : 'amber');
+        }
+
+        /**
+         * Mark the selected crew member as "Day Off" for the active date
+         */
+        function handleMarkDayOff() {
+            const crewName = state.selectedCrew;
+            const dayRecord = getActiveDayRecord();
+            dayRecord[crewName] = { timeIn: 'Day Off', timeOut: 'Day Off' };
+
+            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, 'Day Off', 'Day Off', 'Day Off');
+            refreshAllViews();
+            showToast(`Marked ${crewName} as Day Off on ${dayRecord.label}`, 'sky');
+        }
+
+        /**
+         * Clear the selected crew member's entry for the active date
+         */
+        function handleClearEntry() {
+            const crewName = state.selectedCrew;
+            const dayRecord = getActiveDayRecord();
+            dayRecord[crewName] = { timeIn: '', timeOut: '' };
+            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, '', '', 'Reset Day');
+            refreshAllViews();
+            showToast(`Cleared ${crewName}'s DTR log for ${dayRecord.label}`, 'slate');
+        }
+
+        /**
+         * Record an action into the Offline Sync Queue (when offline) or push live to Cloud Storage & Webhook (when online)
+         */
+        async function recordSyncEvent(crew, date, day, timeIn, timeOut, status) {
+            const periodKey = date.startsWith('2026-09') ? 'sep2026' : 'oct2026';
+            const dayRecord = state.records[periodKey][date];
+            const payload = {
+                id: Date.now(),
+                timestampMs: Date.now(),
+                displayTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                period: periodKey,
+                crew,
+                date,
+                day,
+                timeIn,
+                timeOut,
+                status,
+                userId: currentUserId || 'offline-device'
+            };
+
+            const isOnline = navigator.onLine && !state.isSimulatedOffline;
+            if (!isOnline) {
+                state.offlineQueue.push(payload);
+                updateCloudStatusUI('offline', 'Offline • Queued');
+                updateNetworkUI();
+                return;
+            }
+
+            // Live Cloud Storage Write
+            if (currentUser && db && dayRecord) {
+                try {
+                    updateCloudStatusUI('syncing', 'Saving to Cloud...');
+                    await saveDayRecordToCloud(periodKey, dayRecord);
+                    const logsCol = collection(db, 'artifacts', appId, 'public', 'data', 'dtr_logs');
+                    await addDoc(logsCol, payload);
+                    updateCloudStatusUI('online', 'Cloud Live • Synced');
+                } catch (err) {
+                    console.error('Cloud write failed, queueing offline:', err);
+                    state.offlineQueue.push(payload);
+                    updateNetworkUI();
+                }
+            }
+
+            if (state.webhookUrl) {
+                sendToGoogleSheetWebhook(payload);
+            }
+        }
+
+        /**
+         * Sync all queued offline punches to Cloud Storage & Google Sheet when back online
+         */
+        async function syncOfflineQueue() {
+            if (state.isSimulatedOffline) {
+                state.isSimulatedOffline = false;
+            }
+            const count = state.offlineQueue.length;
+            if (count === 0) {
+                updateNetworkUI();
+                if (currentUser && db) {
+                    await pushAllLocalRecordsToCloud();
+                }
+                showToast('All DTR records are synced with Cloud Storage & Updated DTR!', 'emerald');
+                return;
+            }
+
+            const queuedItems = [...state.offlineQueue];
+            state.offlineQueue = [];
+            updateNetworkUI();
+
+            if (currentUser && db) {
+                updateCloudStatusUI('syncing', 'Syncing Offline Queue...');
+                for (const item of queuedItems) {
+                    const periodKey = item.period || (item.date?.startsWith('2026-09') ? 'sep2026' : 'oct2026');
+                    const dayRecord = state.records[periodKey]?.[item.date];
+                    if (dayRecord) {
+                        await saveDayRecordToCloud(periodKey, dayRecord);
+                    }
+                    const logsCol = collection(db, 'artifacts', appId, 'public', 'data', 'dtr_logs');
+                    await addDoc(logsCol, { ...item, userId: currentUserId || item.userId });
+                }
+                updateCloudStatusUI('online', 'Cloud Live • Synced');
+            }
+
+            if (state.webhookUrl) {
+                queuedItems.forEach(item => sendToGoogleSheetWebhook(item));
+            }
+
+            renderOfflineQueueList();
+            showToast(`Synced ${count} offline crew log(s) to Cloud Storage!`, 'emerald');
+        }
+
+        /**
+         * Send POST request to Google Apps Script Webhook if configured
+         */
+        async function sendToGoogleSheetWebhook(payload) {
+            try {
+                await fetch(state.webhookUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                state.offlineQueue.push(payload);
+                updateNetworkUI();
+            }
+        }
+
+        /**
+         * Pull latest DTR rows from Google Apps Script Web App (GET) if connected
+         */
+        async function pullFromGoogleSheetWebhook() {
+            if (!state.webhookUrl) {
+                showToast('Paste your Google Apps Script Web App URL first, or upload a CSV file.', 'amber');
+                return;
+            }
+            if (state.isSimulatedOffline || !navigator.onLine) {
+                showToast('Switch to Online Mode to pull latest rows from Google Sheets.', 'amber');
+                return;
+            }
+            try {
+                showToast('Pulling latest rows from Updated DTR Google Sheet...', 'sky');
+                const res = await fetch(state.webhookUrl);
+                const json = await res.json();
+                if (json && json.data) {
+                    let count = 0;
+                    Object.keys(json.data).forEach(crewName => {
+                        const rows = json.data[crewName];
+                        if (Array.isArray(rows)) {
+                            const tsv = rows.map(r => r.join('\t')).join('\n');
+                            count += parseAndAutoFillDtrData(tsv, crewName);
+                        }
+                    });
+                    refreshAllViews();
+                    if (currentUser && db) await pushAllLocalRecordsToCloud();
+                    showToast(`Pulled & synced ${count} entries from Updated DTR Sheet!`, 'emerald');
+                }
+            } catch (err) {
+                console.error('Webhook pull error:', err);
+                showToast('Could not pull via URL. Ensure Web App access is set to "Anyone".', 'amber');
+            }
+        }
+
+        function toggleGoLiveModal(show) {
+            const modal = document.getElementById('goLiveModal');
+            if (modal) modal.classList.toggle('hidden', !show);
+        }
+
+        /**
+         * Toggle simulated offline state so users can test offline reliability anytime
+         */
+        function toggleSimulatedOffline() {
+            state.isSimulatedOffline = !state.isSimulatedOffline;
+            updateNetworkUI();
+            if (state.isSimulatedOffline) {
+                showToast('Switched to Offline Mode. Punches will queue automatically.', 'amber');
+            } else {
+                if (state.offlineQueue.length > 0) {
+                    syncOfflineQueue();
+                } else {
+                    showToast('Back Online! Connected to Updated DTR.', 'emerald');
+                }
+            }
+        }
+
+        /**
+         * Update header network status pills & offline queue counters
+         */
+        function updateNetworkUI() {
+            const isOnline = navigator.onLine && !state.isSimulatedOffline;
+            const btn = document.getElementById('networkToggleBtn');
+            const dot = document.getElementById('networkDot');
+            const label = document.getElementById('networkLabel');
+            const banner = document.getElementById('offlineBanner');
+            const queueBtn = document.getElementById('syncQueueBtn');
+            const navBadge = document.getElementById('navSyncBadge');
+
+            if (isOnline) {
+                btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all bg-emerald-950/80 border-emerald-700/60 text-emerald-300';
+                dot.className = 'relative w-2 h-2 rounded-full bg-emerald-400 status-pulse';
+                label.textContent = 'Online • Sheet Synced';
+                banner.classList.add('hidden');
+            } else {
+                btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all bg-amber-950/90 border-amber-600/70 text-amber-300';
+                dot.className = 'relative w-2 h-2 rounded-full bg-amber-400';
+                label.textContent = 'Offline Mode (Tap to Reconnect)';
+                banner.classList.remove('hidden');
+            }
+
+            if (state.offlineQueue.length > 0) {
+                queueBtn.classList.remove('hidden');
+                queueBtn.classList.add(' inline-flex');
+                document.getElementById('pendingCountText').textContent = `${state.offlineQueue.length} Pending Sync`;
+                navBadge.classList.remove('hidden');
+            } else {
+                queueBtn.classList.add('hidden');
+                navBadge.classList.add('hidden');
+            }
+            renderOfflineQueueList();
+        }
+
+        function renderOfflineQueueList() {
+            const container = document.getElementById('offlineQueueListContainer');
+            if (!container) return;
+            if (state.offlineQueue.length === 0) {
+                container.innerHTML = `<div class="flex items-center gap-2 text-emerald-400 font-medium">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>All crew logs are synced with Updated DTR.</span>
+                </div>`;
+                return;
+            }
+            container.innerHTML = `<div class="space-y-2">
+                ${state.offlineQueue.map(item => `
+                    <div class="flex items-center justify-between bg-slate-950 px-3 py-2 rounded-lg border border-amber-500/30">
+                        <div>
+                            <span class="font-bold text-white">${item.crew}</span>
+                            <span class="text-slate-400 ml-1">(${item.date})</span>
+                            <span class="ml-2 font-mono-clock text-emerald-400">In: ${item.timeIn || '—'}</span>
+                            <span class="ml-2 font-mono-clock text-amber-300">Out: ${item.timeOut || '—'}</span>
+                        </div>
+                        <span class="text-[10px] font-mono-clock text-amber-400">Queued ${item.timestamp}</span>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+
+        /**
+         * Render Master Daily Time Record Table (Tab 2)
+         */
+        function renderMasterDtrTable() {
+            const tbody = document.getElementById('masterDtrTableBody');
+            const dataset = state.records[state.activePeriod];
+            const rows = Object.values(dataset);
+
+            tbody.innerHTML = rows.map(row => {
+                const isCurrentDate = row.date === state.activeDate;
+                return `
+                <tr onclick="jumpToPunchDate('${row.date}')" class="cursor-pointer transition hover:bg-slate-800/70 ${isCurrentDate ? 'bg-emerald-950/30 border-l-2 border-l-emerald-400' : ''}">
+                    <td class="py-2.5 px-3 font-semibold text-white whitespace-nowrap">
+                        ${row.label}
+                        ${row.date === '2026-10-18' ? '<span class="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Today</span>' : ''}
+                    </td>
+                    <td class="py-2.5 px-2 text-slate-400">${row.day}</td>
+                    <td class="py-2.5 px-2.5 border-l border-slate-800/80 whitespace-nowrap">${formatSheetTimeIn('Maricel', row.Maricel?.timeIn)}</td>
+                    <td class="py-2.5 px-2.5 whitespace-nowrap">${formatSheetTimeOut(row.Maricel?.timeOut)}</td>
+                    <td class="py-2.5 px-2.5 border-l border-slate-800/80 whitespace-nowrap">${formatSheetTimeIn('Pamela', row.Pamela?.timeIn)}</td>
+                    <td class="py-2.5 px-2.5 whitespace-nowrap">${formatSheetTimeOut(row.Pamela?.timeOut)}</td>
+                    <td class="py-2.5 px-2.5 border-l border-slate-800/80 whitespace-nowrap">${formatSheetTimeIn('Aileen', row.Aileen?.timeIn)}</td>
+                    <td class="py-2.5 px-2.5 whitespace-nowrap">${formatSheetTimeOut(row.Aileen?.timeOut)}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        /**
+         * Render Individual Crew Member Sheet (Updated_DTR_Maricel.csv, Pamela.csv, Aileen.csv)
+         */
+        function renderIndividualCrewSheet() {
+            const crewName = state.individualCrewTab;
+            const profile = CREW_PROFILES[crewName];
+            const dataset = state.records[state.activePeriod];
+            const rows = Object.values(dataset);
+
+            // Update sub-tab buttons
+            ['Maricel', 'Pamela', 'Aileen'].forEach(c => {
+                const btn = document.getElementById(`crewTabBtn-${c}`);
+                btn.className = c === crewName
+                    ? 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-emerald-500 text-slate-950 shadow'
+                    : 'px-3.5 py-2 rounded-xl text-xs font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700';
+            });
+            document.getElementById('downloadCrewCsvBtnText').textContent = `Download Updated_DTR_${crewName}.csv`;
+
+            let daysPresent = 0;
+            let daysOff = 0;
+            let totalLateMins = 0;
+            let totalHours = 0;
+
+            const tableHtml = rows.map(row => {
+                const rec = row[crewName] || { timeIn: '', timeOut: '' };
+                const evalInfo = evaluateAttendance(crewName, rec.timeIn, rec.timeOut);
+
+                if (rec.timeIn === 'Day Off') {
+                    daysOff++;
+                } else if (rec.timeIn) {
+                    daysPresent++;
+                    totalLateMins += evalInfo.lateMinutes;
+                    totalHours += evalInfo.hoursWorked;
+                }
+
+                return `
+                <tr class="hover:bg-slate-800/60 transition">
+                    <td class="py-2.5 px-3 font-semibold text-white whitespace-nowrap">${row.label}</td>
+                    <td class="py-2.5 px-2 text-slate-400">${row.day}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap">${formatSheetTimeIn(crewName, rec.timeIn)}</td>
+                    <td class="py-2.5 px-3 whitespace-nowrap">${formatSheetTimeOut(rec.timeOut)}</td>
+                    <td class="py-2.5 px-3">
+                        <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md ${evalInfo.badgeClass}">${evalInfo.status}</span>
+                    </td>
+                    <td class="py-2.5 px-3 font-mono-clock ${evalInfo.lateMinutes > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}">
+                        ${evalInfo.lateMinutes > 0 ? `${evalInfo.lateMinutes} mins` : '0'}
+                    </td>
+                    <td class="py-2.5 px-3 font-mono-clock text-slate-200">
+                        ${evalInfo.hoursWorked > 0 ? `${evalInfo.hoursWorked} hrs` : '—'}
+                    </td>
+                    <td class="py-2.5 px-3 text-right">
+                        <button onclick="quickEditCrewRow('${crewName}', '${row.date}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-white text-[11px] font-semibold transition">
+                            Log / Edit
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('individualCrewTableBody').innerHTML = tableHtml;
+
+            // Render KPI Summary Cards
+            document.getElementById('individualCrewKpis').innerHTML = `
+                <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 block">${crewName} • Role</span>
+                    <span class="text-sm font-extrabold text-white mt-0.5 block">${profile.role}</span>
+                    <span class="text-[11px] text-emerald-400 font-mono-clock">${profile.expectedIn} – ${profile.fixedOut}</span>
+                </div>
+                <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Days Logged</span>
+                    <span class="text-lg font-extrabold text-emerald-400 font-mono-clock mt-0.5 block">${daysPresent} Days</span>
+                    <span class="text-[11px] text-slate-400">${daysOff} Day(s) Off</span>
+                </div>
+                <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Total Hours</span>
+                    <span class="text-lg font-extrabold text-sky-400 font-mono-clock mt-0.5 block">${totalHours.toFixed(1)} hrs</span>
+                    <span class="text-[11px] text-slate-400">Cutoff Cumulative</span>
+                </div>
+                <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Late Minutes (🚨)</span>
+                    <span class="text-lg font-extrabold ${totalLateMins > 0 ? 'text-rose-400' : 'text-emerald-400'} font-mono-clock mt-0.5 block">${totalLateMins} mins</span>
+                    <span class="text-[11px] text-slate-400">Threshold: ${profile.expectedIn}</span>
+                </div>
+            `;
+        }
+
+        /**
+         * Parse uploaded CSV file (Updated_DTR_Daily_Time_Record.csv or Individual Crew CSV)
+         * and auto-fill the app's records + Cloud Storage
+         */
+        function handleCsvFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const content = e.target.result;
+                const count = parseAndAutoFillDtrData(content, file.name);
+                refreshAllViews();
+                if (currentUser && db && navigator.onLine && !state.isSimulatedOffline) {
+                    await pushAllLocalRecordsToCloud();
+                }
+                showToast(`Auto-filled & cloud-synced ${count} row(s) from ${file.name}!`, 'emerald');
+            };
+            reader.readAsText(file);
+        }
+
+        /**
+         * Handle pasted rows from Google Sheets
+         */
+        async function handlePasteSheetData() {
+            const raw = document.getElementById('pasteSheetTextarea').value.trim();
+            if (!raw) {
+                showToast('Paste one or more rows from Google Sheets first.', 'amber');
+                return;
+            }
+            const count = parseAndAutoFillDtrData(raw, 'Pasted Sheet Data');
+            refreshAllViews();
+            document.getElementById('pasteSheetTextarea').value = '';
+            if (currentUser && db && navigator.onLine && !state.isSimulatedOffline) {
+                await pushAllLocalRecordsToCloud();
+            }
+            showToast(`Auto-filled & cloud-synced ${count} row(s) from Google Sheet cells!`, 'emerald');
+        }
+
+        /**
+         * Flexible CSV / TSV parser that detects dates (e.g. 2026-10-16 or Oct 16, 2026)
+         * and fills crew Time In / Time Out
+         */
+        function parseAndAutoFillDtrData(text, sourceName) {
+            const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+            let updatedCount = 0;
+
+            // Detect if file name targets a specific crew member
+            let singleCrewTarget = null;
+            if (/maricel/i.test(sourceName)) singleCrewTarget = 'Maricel';
+            else if (/pamela/i.test(sourceName)) singleCrewTarget = 'Pamela';
+            else if (/aileen/i.test(sourceName)) singleCrewTarget = 'Aileen';
+
+            lines.forEach(line => {
+                const cells = line.includes('\t')
+                    ? line.split('\t').map(c => c.trim())
+                    : line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+
+                // Look for ISO date 2026-10-XX
+                const isoIdx = cells.findIndex(c => /^2026-\d{2}-\d{2}$/.test(c));
+                if (isoIdx !== -1) {
+                    const dateKey = cells[isoIdx];
+                    const targetBucket = dateKey.startsWith('2026-09') ? state.records.sep2026 : state.records.oct2026;
+                    if (!targetBucket[dateKey]) {
+                        targetBucket[dateKey] = {
+                            date: dateKey,
+                            label: dateKey,
+                            day: cells[isoIdx + 1] || 'Day',
+                            Maricel: { timeIn: '', timeOut: '' },
+                            Pamela: { timeIn: '', timeOut: '' },
+                            Aileen: { timeIn: '', timeOut: '' }
+                        };
+                    }
+
+                    const rec = targetBucket[dateKey];
+                    const afterDate = cells.slice(isoIdx + 1);
+                    // Skip weekday column if present
+                    const timeCells = /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/i.test(afterDate[0] || '')
+                        ? afterDate.slice(1)
+                        : afterDate;
+
+                    if (singleCrewTarget && timeCells.length >= 2) {
+                        rec[singleCrewTarget] = {
+                            timeIn: timeCells[0].replace('🚨', '').trim(),
+                            timeOut: timeCells[1].trim()
+                        };
+                        updatedCount++;
+                    } else if (timeCells.length >= 6) {
+                        rec.Maricel = { timeIn: timeCells[0].replace('🚨', '').trim(), timeOut: timeCells[1].trim() };
+                        rec.Pamela  = { timeIn: timeCells[2].replace('🚨', '').trim(), timeOut: timeCells[3].trim() };
+                        rec.Aileen  = { timeIn: timeCells[4].replace('🚨', '').trim(), timeOut: timeCells[5].trim() };
+                        updatedCount++;
+                    }
+                }
+            });
+
+            return updatedCount || 1;
+        }
+
+        /**
+         * Copy DTR table in Tab-Separated Format (TSV) for direct pasting into Google Sheets
+         */
+        function copySheetTableToClipboard(mode) {
+            const dataset = Object.values(state.records[state.activePeriod]);
+            let tsvLines = [];
+
+            if (mode === 'master') {
+                tsvLines.push([
+                    'CREW DAILY TIME RECORD (DTR)', '', '', '', 'Shift Schedule', 'Role / Type', 'Expected In', 'Fixed Out'
+                ].join('\t'));
+                tsvLines.push(['Cutoff Period:', '2026-10-16', 'to', '2026-10-31', 'Maricel', 'Standard Crew', '10:30 AM', '08:00 PM'].join('\t'));
+                tsvLines.push(['Pay Cycle:', '2nd Half (16th – End)', '', '', 'Pamela', 'Standard Crew', '10:30 AM', '08:00 PM'].join('\t'));
+                tsvLines.push(['Current Date:', state.activeDate, '', '', 'Aileen', 'Opening Crew', '08:00 AM', '05:00 PM'].join('\t'));
+                tsvLines.push('');
+                tsvLines.push(['DATE', 'DAY', 'Maricel Time In', 'Maricel Time Out', 'Pamela Time In', 'Pamela Time Out', 'Aileen Time In', 'Aileen Time Out'].join('\t'));
+
+                dataset.forEach(r => {
+                    tsvLines.push([
+                        r.date,
+                        r.day,
+                        r.Maricel?.timeIn || '',
+                        r.Maricel?.timeOut || '',
+                        r.Pamela?.timeIn || '',
+                        r.Pamela?.timeOut || '',
+                        r.Aileen?.timeIn || '',
+                        r.Aileen?.timeOut || ''
+                    ].join('\t'));
+                });
+            } else {
+                const c = state.individualCrewTab;
+                const prof = CREW_PROFILES[c];
+                tsvLines.push([`CREW DTR — ${c.toUpperCase()}`, `Role: ${prof.role}`, `Expected In: ${prof.expectedIn}`, `Fixed Out: ${prof.fixedOut}`].join('\t'));
+                tsvLines.push(['DATE', 'DAY', 'Time In (PHT)', 'Time Out (PHT)', 'Status', 'Late (Mins)', 'Hours Worked'].join('\t'));
+                dataset.forEach(r => {
+                    const rec = r[c] || { timeIn: '', timeOut: '' };
+                    const ev = evaluateAttendance(c, rec.timeIn, rec.timeOut);
+                    tsvLines.push([r.date, r.day, rec.timeIn || '', rec.timeOut || '', ev.status, ev.lateMinutes, ev.hoursWorked].join('\t'));
+                });
+            }
+
+            copyTextToClipboard(tsvLines.join('\n'));
+            showToast('Copied to clipboard! Paste directly into your Google Sheet.', 'emerald');
+        }
+
+        /**
+         * Download CSV file matching the attached filenames
+         */
+        function exportCSV(type) {
+            const dataset = Object.values(state.records[state.activePeriod]);
+            const csvRows = [
+                ['CREW DAILY TIME RECORD (DTR)', '', '', '', 'Shift Schedule', 'Role / Type', 'Expected In', 'Fixed Out'],
+                ['Cutoff Period:', '2026-10-16', 'to', '2026-10-31', 'Maricel', 'Standard Crew', '10:30 AM', '08:00 PM'],
+                ['Pay Cycle:', '2nd Half (16th – End)', '', '', 'Pamela', 'Standard Crew', '10:30 AM', '08:00 PM'],
+                ['Current Date:', state.activeDate, '', '', 'Aileen', 'Opening Crew', '08:00 AM', '05:00 PM'],
+                [],
+                ['DATE', 'DAY', 'Maricel Time In', 'Maricel Time Out', 'Pamela Time In', 'Pamela Time Out', 'Aileen Time In', 'Aileen Time Out']
+            ];
+
+            dataset.forEach(r => {
+                csvRows.push([
+                    r.date,
+                    r.day,
+                    r.Maricel?.timeIn || '',
+                    r.Maricel?.timeOut || '',
+                    r.Pamela?.timeIn || '',
+                    r.Pamela?.timeOut || '',
+                    r.Aileen?.timeIn || '',
+                    r.Aileen?.timeOut || ''
+                ]);
+            });
+
+            triggerCsvDownload(csvRows, `Updated_DTR_${type}.csv`);
+        }
+
+        function exportIndividualCrewCSV() {
+            const c = state.individualCrewTab;
+            const prof = CREW_PROFILES[c];
+            const dataset = Object.values(state.records[state.activePeriod]);
+            const csvRows = [
+                [`Crew Member: ${c}`, `Role: ${prof.role}`, `Expected In: ${prof.expectedIn}`, `Fixed Out: ${prof.fixedOut}`],
+                ['DATE', 'DAY', 'Time In (PHT)', 'Time Out (PHT)', 'Status', 'Late Minutes', 'Hours Worked']
+            ];
+            dataset.forEach(r => {
+                const rec = r[c] || { timeIn: '', timeOut: '' };
+                const ev = evaluateAttendance(c, rec.timeIn, rec.timeOut);
+                csvRows.push([r.date, r.day, rec.timeIn || '', rec.timeOut || '', ev.status, ev.lateMinutes, ev.hoursWorked]);
+            });
+            triggerCsvDownload(csvRows, `Updated_DTR_${c}.csv`);
+        }
+
+        function triggerCsvDownload(rows, filename) {
+            const csvString = rows.map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`Downloaded ${filename}`, 'emerald');
+        }
+
+        /**
+         * Reliable Clipboard Copy using document.execCommand('copy') for iFrame compatibility
+         */
+        function copyTextToClipboard(text) {
+            const helper = document.getElementById('clipboardHelper');
+            helper.value = text;
+            helper.select();
+            document.execCommand('copy');
+        }
+
+        function copyAppsScriptSnippet() {
+            const code = document.getElementById('appsScriptCodeBlock').textContent;
+            copyTextToClipboard(code);
+            showToast('Apps Script copied! Paste into Extensions -> Apps Script.', 'emerald');
+        }
+
+        function toggleAppsScriptModal(show) {
+            const modal = document.getElementById('appsScriptModal');
+            modal.classList.toggle('hidden', !show);
+        }
+
+        function saveWebhookUrl() {
+            const val = document.getElementById('webhookUrlInput').value.trim();
+            state.webhookUrl = val;
+            showToast(val ? 'Connected live Google Sheet Webhook URL!' : 'Cleared Webhook URL.', 'emerald');
+        }
+
+        /**
+         * Switch between bottom navigation tabs
+         */
+        function switchBottomTab(tabId) {
+            ['punch', 'sheet', 'crew', 'sync'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tabId);
+                const btn = document.getElementById(`navBtn-${t}`);
+                if (t === tabId) {
+                    btn.className = 'relative flex flex-col items-center justify-center py-1.5 rounded-xl text-emerald-400 bg-emerald-500/10 font-bold transition';
+                } else {
+                    btn.className = 'relative flex flex-col items-center justify-center py-1.5 rounded-xl text-slate-400 hover:text-slate-200 font-medium transition';
+                }
+            });
+            refreshAllViews();
+        }
+
+        function selectCrew(crewName) {
+            state.selectedCrew = crewName;
+            const profile = CREW_PROFILES[crewName];
+            document.getElementById('manualTimeInput').value = profile.expectedIn24;
+            refreshAllViews();
+        }
+
+        function selectIndividualCrewSheet(crewName) {
+            state.individualCrewTab = crewName;
+            renderIndividualCrewSheet();
+        }
+
+        function handleDateChange(newDate) {
+            state.activeDate = newDate;
+            document.getElementById('sheetMetaCurrentDate').textContent = newDate;
+            refreshAllViews();
+        }
+
+        function stepActiveDate(delta) {
+            const keys = Object.keys(state.records.oct2026);
+            const idx = keys.indexOf(state.activeDate);
+            const nextIdx = Math.min(keys.length - 1, Math.max(0, idx + delta));
+            handleDateChange(keys[nextIdx]);
+        }
+
+        function setSheetPeriod(periodKey) {
+            state.activePeriod = periodKey;
+            document.getElementById('periodBtn-oct2026').className = periodKey === 'oct2026'
+                ? 'px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950'
+                : 'px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700';
+            document.getElementById('periodBtn-sep2026').className = periodKey === 'sep2026'
+                ? 'px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950'
+                : 'px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700';
+            refreshAllViews();
+        }
+
+        function jumpToPunchDate(dateStr) {
+            if (state.records.oct2026[dateStr]) {
+                state.activeDate = dateStr;
+                switchBottomTab('punch');
+                showToast(`Selected ${state.records.oct2026[dateStr].label} for logging`, 'sky');
+            }
+        }
+
+        function quickEditCrewRow(crewName, dateStr) {
+            if (state.records.oct2026[dateStr]) {
+                state.selectedCrew = crewName;
+                state.activeDate = dateStr;
+                switchBottomTab('punch');
+                showToast(`Ready to log ${crewName} for ${dateStr}`, 'emerald');
+            } else {
+                showToast('Switch to Oct 16–31, 2026 period to log current cutoff dates.', 'amber');
+            }
+        }
+
+        function toggleManualTimeInput() {
+            const mode = document.getElementById('timeStampMode').value;
+            const input = document.getElementById('manualTimeInput');
+            input.classList.toggle('hidden', mode !== 'custom');
+            renderPunchConsole();
+        }
+
+        /**
+         * Non-blocking Toast Message Box (replaces browser alert)
+         */
+        function showToast(message, color = 'emerald') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const colorStyles = {
+                emerald: 'bg-emerald-950/95 border-emerald-500/60 text-emerald-200',
+                amber:   'bg-amber-950/95 border-amber-500/60 text-amber-200',
+                sky:     'bg-sky-950/95 border-sky-500/60 text-sky-200',
+                slate:   'bg-slate-900/95 border-slate-600 text-slate-200'
+            };
+            toast.className = `pointer-events-auto px-3.5 py-2.5 rounded-xl border shadow-xl text-xs font-semibold flex items-center gap-2 transition-all duration-300 ${colorStyles[color] || colorStyles.emerald}`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-6px)';
+                setTimeout(() => toast.remove(), 250);
+            }, 2800);
+        }
+
+        /**
+         * Live Clock Update Loop
+         */
+        function startLiveClock() {
+            const updateClock = () => {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+                document.getElementById('liveClockDisplay').textContent = timeStr;
+            };
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        /**
+         * Re-render all UI components
+         */
+        function refreshAllViews() {
+            renderDateSelector();
+            renderCrewSelectorCards();
+            renderPunchConsole();
+            renderMasterDtrTable();
+            renderIndividualCrewSheet();
+            updateNetworkUI();
+        }
+
+        // Listen for real browser online/offline changes
+        window.addEventListener('online', () => {
+            updateNetworkUI();
+            if (state.offlineQueue.length > 0) syncOfflineQueue();
+        });
+        window.addEventListener('offline', () => {
+            updateNetworkUI();
+            showToast('Device went offline. Crew punches will queue automatically.', 'amber');
+        });
+        document.getElementById('useFixedOutToggle').addEventListener('change', renderPunchConsole);
+
+        // Expose handlers to window for HTML inline event attributes
+        Object.assign(window, {
+            syncOfflineQueue,
+            toggleSimulatedOffline,
+            stepActiveDate,
+            handleDateChange,
+            selectCrew,
+            toggleManualTimeInput,
+            handleCrewPunch,
+            handleMarkDayOff,
+            handleClearEntry,
+            switchBottomTab,
+            copySheetTableToClipboard,
+            exportCSV,
+            setSheetPeriod,
+            jumpToPunchDate,
+            selectIndividualCrewSheet,
+            exportIndividualCrewCSV,
+            quickEditCrewRow,
+            handleCsvFileUpload,
+            handlePasteSheetData,
+            toggleAppsScriptModal,
+            toggleGoLiveModal,
+            pullFromGoogleSheetWebhook,
+            saveWebhookUrl,
+            copyAppsScriptSnippet,
+            copyUserIdToClipboard,
+            forceCloudPushAll
+        });
+
+        // Initialize App & Cloud Storage on Load
+        window.onload = function() {
+            initializeSheetData();
+            startLiveClock();
+            refreshAllViews();
+            initCloudStorage();
+        };
+    </script>
+</body>
+</html>
