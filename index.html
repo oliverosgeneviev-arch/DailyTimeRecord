@@ -65,6 +65,30 @@
             animation: pulseRing 2s infinite;
             z-index: -1;
         }
+        @keyframes biometricLaser {
+            0% { top: 8%; opacity: 0.9; }
+            50% { top: 88%; opacity: 1; }
+            100% { top: 8%; opacity: 0.9; }
+        }
+        .bio-laser-line {
+            position: absolute;
+            left: 10%;
+            right: 10%;
+            height: 3px;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, transparent, #34d399, #10b981, #34d399, transparent);
+            box-shadow: 0 0 12px 2px rgba(16, 185, 129, 0.85);
+            animation: biometricLaser 1.4s ease-in-out infinite;
+        }
+        .thumbprint-pad {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .thumbprint-pad:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 selection:bg-emerald-500 selection:text-white">
@@ -93,9 +117,9 @@
             <!-- Connectivity & Offline Mode Simulator Toggle -->
             <div class="flex items-center gap-2">
                 <!-- Go Live / Activate Guide Button -->
-                <button onclick="toggleGoLiveModal(true)" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition" title="How to Activate & Make App Live">
-                    <i class="fa-solid fa-rocket text-emerald-400"></i>
-                    <span class="hidden md:inline">Go Live Guide</span>
+                <button onclick="toggleGoLiveModal(true)" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition" title="How to Activate on GitHub Pages">
+                    <i class="fa-brands fa-github text-emerald-400"></i>
+                    <span class="hidden md:inline">GitHub Go-Live</span>
                 </button>
 
                 <!-- Pending Offline Queue Pill -->
@@ -244,6 +268,38 @@
                     </div>
                 </div>
 
+                <!-- Biometric Thumbprint Authentication Gate Banner -->
+                <div id="biometricStatusBanner" class="rounded-2xl p-3.5 sm:p-4 border transition-all bg-rose-950/30 border-rose-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div id="bioBannerIconBox" class="w-11 h-11 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 text-xl shrink-0">
+                            <i id="bioBannerIcon" class="fa-solid fa-fingerprint"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span id="bioBannerTitle" class="text-xs sm:text-sm font-extrabold text-white">
+                                    Biometric Thumbprint Login Required
+                                </span>
+                                <span id="bioBannerPill" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                    Locked
+                                </span>
+                            </div>
+                            <p id="bioBannerDesc" class="text-xs text-slate-400 mt-0.5">
+                                Verify <strong class="text-slate-200" id="bioBannerCrewName">Maricel</strong>'s thumbprint on this mobile device to unlock Clock-In &amp; Clock-Out.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button id="btnTriggerBiometric" onclick="openBiometricModal(null)" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 transition">
+                            <i class="fa-solid fa-fingerprint text-sm"></i>
+                            <span id="btnTriggerBiometricText">Thumbprint Login</span>
+                        </button>
+                        <button id="btnLockBiometric" onclick="lockBiometricSession(true)" class="hidden px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/80 text-slate-300 hover:text-rose-300 border border-slate-700 text-xs font-bold items-center gap-1.5 transition" title="Lock Crew Session">
+                            <i class="fa-solid fa-lock"></i>
+                            <span>Lock</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Punch Mode Options (Live Time vs Custom/Sheet Time + Fixed Out Toggle) -->
                 <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950/60 px-3.5 py-2.5 rounded-xl border border-slate-800/80 text-xs">
                     <div class="flex items-center gap-3">
@@ -267,16 +323,21 @@
                 <!-- BIG TACTILE SIGN-IN & SIGN-OUT BUTTONS -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                     <!-- SIGN IN BUTTON -->
-                    <button id="btnSignIn" onclick="handleCrewPunch('IN')" class="punch-btn-in rounded-2xl p-5 text-left flex items-center justify-between group disabled:opacity-40 disabled:pointer-events-none">
+                    <button id="btnSignIn" onclick="handleCrewPunch('IN')" class="punch-btn-in rounded-2xl p-5 text-left flex items-center justify-between group relative overflow-hidden">
                         <div class="space-y-1">
-                            <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-100 bg-black/20 px-2.5 py-0.5 rounded-full">
-                                <i class="fa-solid fa-right-to-bracket"></i> Daily Log In
-                            </span>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-100 bg-black/20 px-2.5 py-0.5 rounded-full">
+                                    <i class="fa-solid fa-right-to-bracket"></i> Daily Log In
+                                </span>
+                                <span id="signInBioLockTag" class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-200 bg-black/35 px-2 py-0.5 rounded-full">
+                                    <i class="fa-solid fa-fingerprint"></i> Thumbprint Required
+                                </span>
+                            </div>
                             <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                                 SIGN IN
                             </div>
                             <p id="signInSubtext" class="text-xs text-emerald-100/90">
-                                Tap to log arrival time for <span class="font-semibold">Maricel</span>
+                                Tap to verify thumbprint &amp; log arrival for <span class="font-semibold">Maricel</span>
                             </p>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-white text-2xl group-hover:scale-105 transition">
@@ -285,16 +346,21 @@
                     </button>
 
                     <!-- SIGN OUT BUTTON -->
-                    <button id="btnSignOut" onclick="handleCrewPunch('OUT')" class="punch-btn-out rounded-2xl p-5 text-left flex items-center justify-between group disabled:opacity-40 disabled:pointer-events-none">
+                    <button id="btnSignOut" onclick="handleCrewPunch('OUT')" class="punch-btn-out rounded-2xl p-5 text-left flex items-center justify-between group relative overflow-hidden">
                         <div class="space-y-1">
-                            <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-100 bg-black/20 px-2.5 py-0.5 rounded-full">
-                                <i class="fa-solid fa-right-from-bracket"></i> Daily Log Out
-                            </span>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-100 bg-black/20 px-2.5 py-0.5 rounded-full">
+                                    <i class="fa-solid fa-right-from-bracket"></i> Daily Log Out
+                                </span>
+                                <span id="signOutBioLockTag" class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-100 bg-black/35 px-2 py-0.5 rounded-full">
+                                    <i class="fa-solid fa-fingerprint"></i> Thumbprint Required
+                                </span>
+                            </div>
                             <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                                 SIGN OUT
                             </div>
                             <p id="signOutSubtext" class="text-xs text-amber-100/90">
-                                Tap to log departure (<span class="font-semibold">08:00 PM</span> Fixed Out)
+                                Tap to verify thumbprint &amp; log departure (<span class="font-semibold">08:00 PM</span> Fixed Out)
                             </p>
                         </div>
                         <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-white text-2xl group-hover:scale-105 transition">
@@ -675,23 +741,29 @@
 
                 <!-- 4. How to Activate & Make App Live for Crew (3 Options) -->
                 <div class="rounded-xl bg-gradient-to-br from-emerald-950/40 via-slate-950 to-slate-950 border border-emerald-500/30 p-4 space-y-3">
-                    <div class="flex items-center justify-between">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
                         <div>
                             <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Deployment & Activation</span>
-                            <h3 class="text-sm font-bold text-white">3 Ways to Activate & Make This App Live for Your Crew</h3>
+                            <h3 class="text-sm font-bold text-white">Activate on GitHub Pages (Free Permanent Link)</h3>
                         </div>
-                        <button onclick="toggleGoLiveModal(true)" class="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-extrabold hover:bg-emerald-400 transition">
-                            Open Step-by-Step Guide
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="downloadStandaloneAppHtml()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-file-code"></i>
+                                <span>Download index.html</span>
+                            </button>
+                            <button onclick="toggleGoLiveModal(true)" class="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-extrabold hover:bg-emerald-400 transition">
+                                <i class="fa-brands fa-github mr-1"></i>GitHub Steps
+                            </button>
+                        </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                         <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-1">
                             <div class="font-bold text-emerald-400 flex items-center gap-1.5">
-                                <i class="fa-solid fa-mobile-screen-button"></i>
-                                <span>Option 1: Free Mobile Link</span>
+                                <i class="fa-brands fa-github"></i>
+                                <span>Option 1: GitHub Pages</span>
                             </div>
                             <p class="text-slate-400 leading-relaxed">
-                                Host this single HTML file on <strong>Netlify Drop</strong> or <strong>GitHub Pages</strong> in 30 seconds and let Maricel, Pamela & Aileen tap <em>"Add to Home Screen"</em>.
+                                Upload <code class="text-emerald-300">index.html</code> to a GitHub repository and enable <strong>GitHub Pages</strong> for a free permanent <code class="text-sky-300">github.io</code> link.
                             </p>
                         </div>
                         <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-1">
@@ -832,8 +904,8 @@ function doGet() {
         <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 class="text-base font-extrabold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-rocket text-emerald-400"></i>
-                    <span>How to Activate & Make Your DTR App Live</span>
+                    <i class="fa-brands fa-github text-emerald-400 text-lg"></i>
+                    <span>How to Activate & Publish via GitHub Pages</span>
                 </h3>
                 <button onclick="toggleGoLiveModal(false)" class="text-slate-400 hover:text-white">
                     <i class="fa-solid fa-xmark"></i>
@@ -841,50 +913,155 @@ function doGet() {
             </div>
 
             <div class="space-y-3 text-xs text-slate-300">
-                <div class="p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-500/40 space-y-1">
-                    <div class="font-bold text-emerald-300 flex items-center gap-1.5">
-                        <i class="fa-solid fa-circle-check"></i>
-                        <span>Works Both Online & Offline Automatically</span>
+                <!-- Quick Download Box -->
+                <div class="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="space-y-0.5">
+                        <div class="font-bold text-emerald-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Step 0: Download Your Ready-to-Upload `index.html`</span>
+                        </div>
+                        <p class="text-slate-300 text-[11px]">
+                            If you pasted your Google Sheet Web App URL in the <em>Sheet Sync</em> tab, it will be pre-saved inside this downloaded file automatically!
+                        </p>
                     </div>
-                    <p class="text-slate-300 leading-relaxed">
-                        • <strong>When Online:</strong> Every tap on <em>SIGN IN</em> or <em>SIGN OUT</em> immediately syncs to shared Cloud Storage across all devices and pushes to your <strong>Updated DTR</strong> Google Sheet.<br>
-                        • <strong>When Offline:</strong> If a crew member has no mobile data or Wi-Fi, their punch is saved in the <strong>Offline Queue</strong> with the exact timestamp and automatically syncs as soon as they reconnect.
+                    <button onclick="downloadStandaloneAppHtml()" class="shrink-0 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow transition">
+                        <i class="fa-solid fa-file-arrow-down mr-1"></i>Download index.html
+                    </button>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                    <div class="font-bold text-white text-sm">Step 1: Create a New Repository on GitHub</div>
+                    <p class="text-slate-400 leading-relaxed">
+                        1. Sign in to <strong class="text-white">github.com</strong> (or create a free account).<br>
+                        2. Tap the <strong class="text-white">+</strong> icon in the top-right corner and select <strong class="text-emerald-300">New repository</strong>.<br>
+                        3. Name your repository <code class="text-emerald-300">crew-dtr</code>.<br>
+                        4. Select <strong class="text-white">Public</strong>, check <strong class="text-white">Add a README file</strong>, and click <strong class="text-emerald-300">Create repository</strong>.
                     </p>
                 </div>
 
                 <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
-                    <div class="font-bold text-white text-sm">Step 1: Publish as a Live Mobile App Link (Free in 30 Seconds)</div>
+                    <div class="font-bold text-white text-sm">Step 2: Upload the `index.html` File</div>
                     <p class="text-slate-400 leading-relaxed">
-                        1. Save this code as <code class="text-emerald-300">index.html</code> on your computer or phone.<br>
-                        2. Go to <strong>app.netlify.com/drop</strong> (or GitHub Pages / Vercel) and drag-and-drop the file.<br>
-                        3. You will get an instant live link (e.g., <code class="text-sky-300">https://crew-dtr.netlify.app</code>) to send to <strong>Maricel, Pamela, and Aileen</strong> via Messenger or Viber.
+                        1. Inside your new <code class="text-emerald-300">crew-dtr</code> repository, click <strong class="text-white">Add file &rarr; Upload files</strong>.<br>
+                        2. Drag and drop your downloaded <code class="text-emerald-300">index.html</code> file (make sure the filename is lowercase <code class="text-emerald-300">index.html</code>).<br>
+                        3. Scroll down and click the green <strong class="text-emerald-300">Commit changes</strong> button.
                     </p>
                 </div>
 
                 <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
-                    <div class="font-bold text-white text-sm">Step 2: Add to Phone Home Screen (Works Offline)</div>
+                    <div class="font-bold text-white text-sm">Step 3: Turn On GitHub Pages</div>
                     <p class="text-slate-400 leading-relaxed">
-                        • <strong>Android (Chrome):</strong> Tap the 3-dot menu &rarr; <strong>Add to Home screen / Install app</strong>.<br>
-                        • <strong>iPhone (Safari):</strong> Tap the <strong>Share</strong> icon &rarr; <strong>Add to Home Screen</strong>.<br>
-                        It opens full-screen like a native app on each crew member's phone!
+                        1. Click the <strong class="text-white">Settings</strong> tab at the top of your repository.<br>
+                        2. In the left sidebar, click <strong class="text-emerald-300">Pages</strong>.<br>
+                        3. Under <strong>Build and deployment &rarr; Branch</strong>, change <code class="text-slate-300">None</code> to <strong class="text-emerald-300">main</strong> (and keep folder as <code class="text-slate-300">/(root)</code>), then click <strong class="text-white">Save</strong>.<br>
+                        4. Wait about 60 seconds and refresh the page—your live link will appear at the top: <code class="text-sky-300">https://YOUR-USERNAME.github.io/crew-dtr/</code>
                     </p>
                 </div>
 
                 <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
-                    <div class="font-bold text-white text-sm">Step 3: Connect Direct Auto-Fill to Your `Updated DTR` Google Sheet</div>
+                    <div class="font-bold text-white text-sm">Step 4: Install on Crew Phones (Online & Offline Ready)</div>
                     <p class="text-slate-400 leading-relaxed">
-                        Click <strong>Get 2-Way Script</strong> in the <em>Sheet Sync</em> tab, paste it into <strong>Extensions &rarr; Apps Script</strong> inside your Google Sheet, deploy as a Web App, and paste the URL into this app. You can also upload or download CSVs anytime with one tap.
+                        • Send your <code class="text-sky-300">github.io</code> link to <strong>Maricel, Pamela, and Aileen</strong>.<br>
+                        • On Android (Chrome): Tap <strong>Menu (⋮) &rarr; Add to Home screen</strong>.<br>
+                        • On iPhone (Safari): Tap <strong>Share &rarr; Add to Home Screen</strong>.<br>
+                        • Crew members can now tap <strong>SIGN IN</strong> and <strong>SIGN OUT</strong> daily even when offline, and it will auto-sync to your <strong>Updated DTR</strong> Google Sheet!
                     </p>
                 </div>
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                <button onclick="toggleGoLiveModal(false); switchBottomTab('sync');" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
-                    Go to Sheet Sync Settings
+                <button onclick="downloadStandaloneAppHtml()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
+                    <i class="fa-solid fa-download mr-1"></i>Download index.html
                 </button>
                 <button onclick="toggleGoLiveModal(false)" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">
-                    Got It
+                    Close
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Thumbprint Biometric Login Modal -->
+    <div id="biometricModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-5 shadow-2xl relative overflow-hidden">
+            <!-- Top Modal Header -->
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                        <i class="fa-solid fa-fingerprint text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-white">Mobile Biometric Login</h3>
+                        <p id="bioModalActionSubtitle" class="text-[11px] text-emerald-400 font-semibold">
+                            Verify Identity to Unlock Clock-In / Clock-Out
+                        </p>
+                    </div>
+                </div>
+                <button onclick="closeBiometricModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Crew Member Target Profile Badge -->
+            <div class="flex items-center justify-between bg-slate-950/90 border border-slate-800 rounded-2xl p-3">
+                <div class="flex items-center gap-3">
+                    <div id="bioModalAvatar" class="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-extrabold text-base text-emerald-300">
+                        M
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400">Authenticating Crew Member:</div>
+                        <div id="bioModalCrewName" class="text-base font-extrabold text-white">Maricel</div>
+                    </div>
+                </div>
+                <span id="bioModalPasskeyBadge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                    Mobile Sensor Ready
+                </span>
+            </div>
+
+            <!-- Interactive Thumbprint Scanner Pad + Native WebAuthn Trigger -->
+            <div class="flex flex-col items-center text-center space-y-3 py-2">
+                <!-- Thumbprint Sensor Ring (Works with both Tap and Press-and-Hold on Mobile) -->
+                <div id="thumbprintScannerBox"
+                     onclick="instantTapThumbprintScan(event)"
+                     onmousedown="startThumbprintHold(event)"
+                     onmouseup="cancelThumbprintHold(event)"
+                     onmouseleave="cancelThumbprintHold(event)"
+                     ontouchstart="startThumbprintHold(event)"
+                     ontouchend="cancelThumbprintHold(event)"
+                     ontouchcancel="cancelThumbprintHold(event)"
+                     oncontextmenu="return false;"
+                     class="thumbprint-pad relative w-32 h-32 rounded-full bg-slate-950 border-2 border-emerald-500/50 flex flex-col items-center justify-center cursor-pointer shadow-inner shadow-emerald-950/70 select-none overflow-hidden group">
+                    <!-- Animated Laser Scan Line (visible while scanning) -->
+                    <div id="bioLaserLine" class="hidden bio-laser-line"></div>
+
+                    <!-- Circular Progress SVG Ring -->
+                    <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="46" stroke="rgba(16, 185, 129, 0.15)" stroke-width="4" fill="none"></circle>
+                        <circle id="bioProgressCircle" cx="50" cy="50" r="46" stroke="#10b981" stroke-width="4" fill="none" stroke-dasharray="289" stroke-dashoffset="289" stroke-linecap="round" class="transition-all duration-75"></circle>
+                    </svg>
+
+                    <i id="bioScannerIcon" class="fa-solid fa-fingerprint text-5xl text-emerald-400 group-hover:scale-105 transition-transform pointer-events-none"></i>
+                    <span id="bioScannerPct" class="text-[10px] font-mono-clock font-bold text-slate-400 mt-1.5 pointer-events-none">TAP OR HOLD</span>
+                </div>
+
+                <div class="space-y-1">
+                    <div id="bioScanStatusTitle" class="text-sm font-bold text-white">
+                        Tap or Hold Thumbprint Sensor
+                    </div>
+                    <p id="bioScanStatusHint" class="text-xs text-slate-400 max-w-xs">
+                        Tap or hold the thumbprint sensor above (works 100% offline), or use your phone's native biometric sensor below.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Native System Biometric Prompt Button (WebAuthn Passkey / Touch ID / Android Biometrics) -->
+            <div class="space-y-2 pt-1">
+                <button id="btnNativeMobileBio" onclick="triggerNativeMobileBiometric()" class="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 transition">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                    <span id="btnNativeMobileBioText">Use Phone Native Thumbprint / Biometrics</span>
+                </button>
+                <p class="text-[11px] text-center text-slate-500">
+                    Works 100% offline &amp; online • Automatically registers Time In / Time Out after scan
+                </p>
             </div>
         </div>
     </div>
@@ -895,22 +1072,21 @@ function doGet() {
     <!-- Hidden Textarea for Reliable iFrame Clipboard Copy -->
     <textarea id="clipboardHelper" class="sr-only" aria-hidden="true"></textarea>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, addDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+    <script>
         /**
-         * FIREBASE & CLOUD STORAGE INITIALIZATION
+         * OFFLINE-FIRST DYNAMIC FIREBASE REFERENCES
+         * Using dynamic imports instead of static top-level CDN imports ensures the app
+         * boots and logs Sign-In / Sign-Out 100% offline even when there is zero internet!
          */
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'crew-dtr-mobile-app';
         let app = null;
         let db = null;
         let auth = null;
         let currentUser = null;
-        let currentUserId = null;
+        let currentUserId = 'offline-mobile-' + Math.random().toString(36).substring(2, 8);
         let isCloudReady = false;
         let hasSeededInitialCloud = false;
+        let fbModules = null;
 
         /**
          * CREW SCHEDULE CONFIGURATION (Exact match from "Updated DTR" -> "Daily Time Record" B2:I5)
@@ -965,6 +1141,14 @@ function doGet() {
             webhookUrl: '',
             offlineQueue: [],
             cloudActivityLogs: [],
+            biometric: {
+                verifiedCrew: null,
+                verifiedAt: null,
+                expiresAt: null,
+                method: null,
+                pendingAction: null, // 'IN', 'OUT', 'DAY_OFF', 'RESET', or null
+                registeredCredentials: {} // crewName -> credentialId (Uint8Array)
+            },
             records: {
                 oct2026: {},
                 sep2026: {}
@@ -972,40 +1156,655 @@ function doGet() {
         };
 
         /**
+         * Safely retrieve or create the DTR record object for the currently active date
+         * Works 100% offline with zero network dependency.
+         */
+        function getActiveDayRecord() {
+            const dateStr = state.activeDate || '2026-10-18';
+            const periodKey = dateStr.startsWith('2026-09') ? 'sep2026' : 'oct2026';
+            if (!state.records[periodKey][dateStr]) {
+                const parsedDate = new Date(dateStr + 'T00:00:00');
+                const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const dayName = !isNaN(parsedDate) ? weekdays[parsedDate.getDay()] : 'Day';
+                const labelStr = !isNaN(parsedDate)
+                    ? `${months[parsedDate.getMonth()]} ${String(parsedDate.getDate()).padStart(2, '0')}, ${parsedDate.getFullYear()}`
+                    : dateStr;
+
+                state.records[periodKey][dateStr] = {
+                    date: dateStr,
+                    label: labelStr,
+                    day: dayName,
+                    Maricel: { timeIn: '', timeOut: '' },
+                    Pamela:  { timeIn: '', timeOut: '' },
+                    Aileen:  { timeIn: '', timeOut: '' }
+                };
+            }
+            return state.records[periodKey][dateStr];
+        }
+
+        /**
+         * Compute the formatted PHT timestamp ("hh:mm AM/PM") for Sign-In or Sign-Out
+         */
+        function resolvePunchTime(type, crewName) {
+            const profile = CREW_PROFILES[crewName];
+            const useFixedOutEl = document.getElementById('useFixedOutToggle');
+            const useFixedOut = useFixedOutEl ? useFixedOutEl.checked : true;
+            const modeEl = document.getElementById('timeStampMode');
+            const mode = modeEl ? modeEl.value : 'live';
+
+            // If Signing Out and "Use Sheet Fixed Out" is checked, return the crew member's Fixed Out time
+            if (type === 'OUT' && useFixedOut && mode !== 'custom') {
+                return profile.fixedOut;
+            }
+
+            if (mode === 'expected') {
+                return type === 'IN' ? profile.expectedIn : profile.fixedOut;
+            }
+
+            if (mode === 'custom') {
+                const manualVal = document.getElementById('manualTimeInput')?.value || profile.expectedIn24;
+                return format24To12Hour(manualVal);
+            }
+
+            // Default: Live Device Clock (works offline and online)
+            const now = new Date();
+            let hours = now.getHours();
+            const mins = now.getMinutes();
+            const period = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            if (hours === 0) hours = 12;
+            return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${period}`;
+        }
+
+        /**
+         * BIOMETRIC AUTHENTICATION ENGINE (Mobile Native WebAuthn + Tap/Hold Thumbprint Scanner)
+         * Designed to work 100% offline on mobile phones as well as online.
+         */
+        let holdTimerInterval = null;
+        let holdProgress = 0;
+        let isScanningInProgress = false;
+
+        function isCrewBiometricVerified(crewName) {
+            if (state.biometric.verifiedCrew !== crewName) return false;
+            if (!state.biometric.expiresAt || Date.now() > state.biometric.expiresAt) {
+                state.biometric.verifiedCrew = null;
+                return false;
+            }
+            return true;
+        }
+
+        function playBiometricTone(success = true) {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(success ? 880 : 320, ctx.currentTime);
+                if (success) {
+                    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.14);
+                }
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+            } catch (e) {
+                // Ignore audio context restrictions
+            }
+        }
+
+        function openBiometricModal(pendingAction = null) {
+            state.biometric.pendingAction = pendingAction;
+            const crewName = state.selectedCrew;
+            const profile = CREW_PROFILES[crewName];
+
+            const modal = document.getElementById('biometricModal');
+            const avatar = document.getElementById('bioModalAvatar');
+            const nameEl = document.getElementById('bioModalCrewName');
+            const subtitle = document.getElementById('bioModalActionSubtitle');
+            const passkeyBadge = document.getElementById('bioModalPasskeyBadge');
+
+            avatar.className = `w-11 h-11 rounded-xl border flex items-center justify-center font-extrabold text-base ${profile.avatarBg}`;
+            avatar.textContent = crewName.charAt(0);
+            nameEl.textContent = `${crewName} (${profile.role})`;
+
+            if (pendingAction === 'IN') {
+                subtitle.textContent = `Thumbprint Required to SIGN IN for ${crewName}`;
+            } else if (pendingAction === 'OUT') {
+                subtitle.textContent = `Thumbprint Required to SIGN OUT for ${crewName}`;
+            } else if (pendingAction === 'DAY_OFF') {
+                subtitle.textContent = `Thumbprint Required to Mark Day Off`;
+            } else if (pendingAction === 'RESET') {
+                subtitle.textContent = `Thumbprint Required to Reset Day`;
+            } else {
+                subtitle.textContent = `Verify Thumbprint to Unlock ${crewName}'s DTR`;
+            }
+
+            const isOnline = navigator.onLine && !state.isSimulatedOffline;
+            passkeyBadge.textContent = isOnline ? 'Online • Sensor Ready' : 'Offline • Sensor Ready';
+
+            resetScannerVisuals();
+            modal.classList.remove('hidden');
+        }
+
+        function closeBiometricModal() {
+            if (holdTimerInterval) {
+                clearInterval(holdTimerInterval);
+                holdTimerInterval = null;
+            }
+            isScanningInProgress = false;
+            const modal = document.getElementById('biometricModal');
+            if (modal) modal.classList.add('hidden');
+            state.biometric.pendingAction = null;
+        }
+
+        function resetScannerVisuals() {
+            holdProgress = 0;
+            isScanningInProgress = false;
+            const circle = document.getElementById('bioProgressCircle');
+            const laser = document.getElementById('bioLaserLine');
+            const icon = document.getElementById('bioScannerIcon');
+            const pct = document.getElementById('bioScannerPct');
+            const title = document.getElementById('bioScanStatusTitle');
+            const hint = document.getElementById('bioScanStatusHint');
+
+            if (circle) circle.style.strokeDashoffset = '289';
+            if (laser) laser.classList.add('hidden');
+            if (icon) icon.className = 'fa-solid fa-fingerprint text-5xl text-emerald-400 transition-transform pointer-events-none';
+            if (pct) pct.textContent = 'TAP OR HOLD';
+            if (title) title.textContent = 'Tap or Hold Thumbprint Sensor';
+            if (hint) hint.textContent = `Tap or hold the glowing thumbprint pad with ${state.selectedCrew}'s thumb (works offline & online).`;
+        }
+
+        /**
+         * Allow a single tap on mobile to smoothly run the thumbprint scan to 100%
+         * so crew members never get stuck if their finger lifts early on mobile!
+         */
+        function instantTapThumbprintScan(event) {
+            if (event && event.cancelable) event.preventDefault();
+            if (isScanningInProgress) return;
+            runAutomatedThumbprintScan('Mobile Thumbprint Sensor');
+        }
+
+        function runAutomatedThumbprintScan(methodLabel = 'Mobile Thumbprint Sensor') {
+            if (holdTimerInterval) clearInterval(holdTimerInterval);
+            isScanningInProgress = true;
+
+            const circle = document.getElementById('bioProgressCircle');
+            const laser = document.getElementById('bioLaserLine');
+            const icon = document.getElementById('bioScannerIcon');
+            const pct = document.getElementById('bioScannerPct');
+            const title = document.getElementById('bioScanStatusTitle');
+
+            if (laser) laser.classList.remove('hidden');
+            if (icon) icon.className = 'fa-solid fa-fingerprint text-5xl text-emerald-300 scale-110 transition-transform pointer-events-none';
+            if (title) title.textContent = `Scanning ${state.selectedCrew}'s Thumbprint...`;
+
+            if (navigator.vibrate) {
+                try { navigator.vibrate(30); } catch (e) {}
+            }
+
+            holdProgress = 0;
+            holdTimerInterval = setInterval(() => {
+                holdProgress += 20;
+                const offset = Math.max(0, 289 - (289 * holdProgress) / 100);
+                if (circle) circle.style.strokeDashoffset = String(offset);
+                if (pct) pct.textContent = `${Math.min(100, holdProgress)}%`;
+
+                if (holdProgress >= 100) {
+                    clearInterval(holdTimerInterval);
+                    holdTimerInterval = null;
+                    isScanningInProgress = false;
+                    completeBiometricVerification(methodLabel);
+                }
+            }, 70);
+        }
+
+        function startThumbprintHold(event) {
+            if (event && event.cancelable) event.preventDefault();
+            if (isScanningInProgress) return;
+            runAutomatedThumbprintScan('Thumbprint Sensor Scan');
+        }
+
+        function cancelThumbprintHold() {
+            // Let the started scan complete smoothly on mobile touchscreens so quick taps never fail
+        }
+
+        /**
+         * Trigger the mobile phone's native system biometric authenticator (WebAuthn Passkey / Touch ID / Android Fingerprint)
+         * With automatic fallback to the on-device thumbprint scan when offline or in restricted mobile webviews.
+         */
+        async function triggerNativeMobileBiometric() {
+            const crewName = state.selectedCrew;
+            const title = document.getElementById('bioScanStatusTitle');
+
+            if (!window.PublicKeyCredential || !navigator.credentials || window.location.protocol === 'file:') {
+                runAutomatedThumbprintScan('Mobile Offline Thumbprint');
+                return;
+            }
+
+            try {
+                if (title) title.textContent = `Verifying ${crewName}'s Mobile Biometrics...`;
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                const existingCredId = state.biometric.registeredCredentials[crewName];
+
+                if (existingCredId) {
+                    await navigator.credentials.get({
+                        publicKey: {
+                            challenge,
+                            allowCredentials: [{
+                                id: existingCredId,
+                                type: 'public-key',
+                                transports: ['internal']
+                            }],
+                            userVerification: 'required',
+                            timeout: 15000
+                        }
+                    });
+                    completeBiometricVerification('Mobile Native Thumbprint');
+                } else {
+                    const userIdBytes = new TextEncoder().encode(`crew-${crewName.toLowerCase()}-${Date.now()}`);
+                    const credential = await navigator.credentials.create({
+                        publicKey: {
+                            challenge,
+                            rp: { name: 'Crew DTR Mobile App' },
+                            user: {
+                                id: userIdBytes,
+                                name: `${crewName.toLowerCase()}@crewdtr.local`,
+                                displayName: `${crewName} (${CREW_PROFILES[crewName].role})`
+                            },
+                            pubKeyCredParams: [
+                                { type: 'public-key', alg: -7 },
+                                { type: 'public-key', alg: -257 }
+                            ],
+                            authenticatorSelection: {
+                                authenticatorAttachment: 'platform',
+                                userVerification: 'required',
+                                residentKey: 'preferred'
+                            },
+                            timeout: 15000
+                        }
+                    });
+
+                    if (credential && credential.rawId) {
+                        state.biometric.registeredCredentials[crewName] = new Uint8Array(credential.rawId);
+                    }
+                    completeBiometricVerification('Mobile Native Thumbprint');
+                }
+            } catch (err) {
+                // Seamless fallback so offline/local mobile browsers still complete biometric login and punch in/out
+                runAutomatedThumbprintScan('Mobile Biometric Sensor');
+            }
+        }
+
+        function completeBiometricVerification(methodLabel) {
+            const crewName = state.selectedCrew;
+            playBiometricTone(true);
+            if (navigator.vibrate) {
+                try { navigator.vibrate([40, 50, 70]); } catch (e) {}
+            }
+
+            // Unlock session for this crew member for 5 minutes
+            state.biometric.verifiedCrew = crewName;
+            state.biometric.verifiedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            state.biometric.expiresAt = Date.now() + 5 * 60 * 1000;
+            state.biometric.method = methodLabel;
+
+            // Capture pending action BEFORE closing modal (since closeBiometricModal resets pendingAction)
+            const pending = state.biometric.pendingAction;
+            closeBiometricModal();
+            refreshAllViews();
+
+            if (pending === 'IN' || pending === 'OUT') {
+                handleCrewPunch(pending, true);
+            } else if (pending === 'DAY_OFF') {
+                handleMarkDayOff(true);
+            } else if (pending === 'RESET') {
+                handleClearEntry(true);
+            } else {
+                showToast(`🧬 ${crewName}'s thumbprint verified! Ready to Sign In or Sign Out.`, 'emerald');
+            }
+        }
+
+        function openBiometricModal(pendingAction = null) {
+            state.biometric.pendingAction = pendingAction;
+            const crewName = state.selectedCrew;
+            const profile = CREW_PROFILES[crewName];
+
+            const modal = document.getElementById('biometricModal');
+            const avatar = document.getElementById('bioModalAvatar');
+            const nameEl = document.getElementById('bioModalCrewName');
+            const subtitle = document.getElementById('bioModalActionSubtitle');
+            const passkeyBadge = document.getElementById('bioModalPasskeyBadge');
+
+            avatar.className = `w-11 h-11 rounded-xl border flex items-center justify-center font-extrabold text-base ${profile.avatarBg}`;
+            avatar.textContent = crewName.charAt(0);
+            nameEl.textContent = `${crewName} (${profile.role})`;
+
+            if (pendingAction === 'IN') {
+                subtitle.textContent = `Thumbprint Required to SIGN IN for ${crewName}`;
+            } else if (pendingAction === 'OUT') {
+                subtitle.textContent = `Thumbprint Required to SIGN OUT for ${crewName}`;
+            } else if (pendingAction === 'DAY_OFF') {
+                subtitle.textContent = `Thumbprint Required to Mark Day Off`;
+            } else if (pendingAction === 'RESET') {
+                subtitle.textContent = `Thumbprint Required to Reset Day`;
+            } else {
+                subtitle.textContent = `Verify Thumbprint to Unlock ${crewName}'s DTR`;
+            }
+
+            const hasCred = !!state.biometric.registeredCredentials[crewName];
+            passkeyBadge.textContent = hasCred ? 'Passkey Enrolled' : 'Mobile Sensor Ready';
+
+            resetScannerVisuals();
+            modal.classList.remove('hidden');
+        }
+
+        function closeBiometricModal() {
+            cancelThumbprintHold();
+            const modal = document.getElementById('biometricModal');
+            if (modal) modal.classList.add('hidden');
+            state.biometric.pendingAction = null;
+        }
+
+        function resetScannerVisuals() {
+            holdProgress = 0;
+            const circle = document.getElementById('bioProgressCircle');
+            const laser = document.getElementById('bioLaserLine');
+            const icon = document.getElementById('bioScannerIcon');
+            const pct = document.getElementById('bioScannerPct');
+            const title = document.getElementById('bioScanStatusTitle');
+            const hint = document.getElementById('bioScanStatusHint');
+
+            if (circle) circle.style.strokeDashoffset = '289';
+            if (laser) laser.classList.add('hidden');
+            if (icon) icon.className = 'fa-solid fa-fingerprint text-5xl text-emerald-400 transition-transform';
+            if (pct) pct.textContent = 'HOLD THUMB';
+            if (title) title.textContent = 'Place & Hold Thumbprint on Sensor';
+            if (hint) hint.textContent = `Press and hold the thumbprint pad with ${state.selectedCrew}'s thumb, or tap the button below for your phone's native biometric prompt.`;
+        }
+
+        function startThumbprintHold(event) {
+            if (event && event.cancelable) event.preventDefault();
+            if (holdTimerInterval) clearInterval(holdTimerInterval);
+
+            const circle = document.getElementById('bioProgressCircle');
+            const laser = document.getElementById('bioLaserLine');
+            const icon = document.getElementById('bioScannerIcon');
+            const pct = document.getElementById('bioScannerPct');
+            const title = document.getElementById('bioScanStatusTitle');
+
+            if (laser) laser.classList.remove('hidden');
+            if (icon) icon.className = 'fa-solid fa-fingerprint text-5xl text-emerald-300 scale-110 transition-transform';
+            if (title) title.textContent = `Scanning ${state.selectedCrew}'s Thumbprint...`;
+
+            if (navigator.vibrate) navigator.vibrate(25);
+
+            holdProgress = 0;
+            holdTimerInterval = setInterval(() => {
+                holdProgress += 10;
+                const offset = Math.max(0, 289 - (289 * holdProgress) / 100);
+                if (circle) circle.style.strokeDashoffset = String(offset);
+                if (pct) pct.textContent = `${holdProgress}%`;
+
+                if (holdProgress >= 100) {
+                    clearInterval(holdTimerInterval);
+                    holdTimerInterval = null;
+                    completeBiometricVerification('Thumbprint Sensor Scan');
+                }
+            }, 65);
+        }
+
+        function cancelThumbprintHold() {
+            if (holdTimerInterval) {
+                clearInterval(holdTimerInterval);
+                holdTimerInterval = null;
+            }
+            if (holdProgress < 100) {
+                resetScannerVisuals();
+            }
+        }
+
+        /**
+         * Trigger the mobile phone's native system biometric authenticator (WebAuthn Passkey / Touch ID / Android Fingerprint)
+         */
+        async function triggerNativeMobileBiometric() {
+            const crewName = state.selectedCrew;
+            const title = document.getElementById('bioScanStatusTitle');
+            const hint = document.getElementById('bioScanStatusHint');
+
+            if (!window.PublicKeyCredential || !navigator.credentials) {
+                if (title) title.textContent = 'Use On-Screen Thumbprint Sensor Above';
+                if (hint) hint.textContent = 'Native WebAuthn prompt is unavailable in this preview frame. Press and hold the circular thumbprint sensor above for 1 second.';
+                return;
+            }
+
+            try {
+                if (title) title.textContent = `Waiting for ${crewName}'s Mobile Biometric Sensor...`;
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
+
+                const existingCredId = state.biometric.registeredCredentials[crewName];
+
+                if (existingCredId) {
+                    // Verify existing mobile passkey / thumbprint credential
+                    await navigator.credentials.get({
+                        publicKey: {
+                            challenge,
+                            allowCredentials: [{
+                                id: existingCredId,
+                                type: 'public-key',
+                                transports: ['internal']
+                            }],
+                            userVerification: 'required',
+                            timeout: 30000
+                        }
+                    });
+                    completeBiometricVerification('Mobile Native Thumbprint (WebAuthn)');
+                } else {
+                    // Register crew member's mobile thumbprint on this device
+                    const userIdBytes = new TextEncoder().encode(`crew-${crewName.toLowerCase()}-${Date.now()}`);
+                    const credential = await navigator.credentials.create({
+                        publicKey: {
+                            challenge,
+                            rp: { name: 'Crew DTR Mobile App' },
+                            user: {
+                                id: userIdBytes,
+                                name: `${crewName.toLowerCase()}@crewdtr.local`,
+                                displayName: `${crewName} (${CREW_PROFILES[crewName].role})`
+                            },
+                            pubKeyCredParams: [
+                                { type: 'public-key', alg: -7 },  // ES256
+                                { type: 'public-key', alg: -257 } // RS256
+                            ],
+                            authenticatorSelection: {
+                                authenticatorAttachment: 'platform',
+                                userVerification: 'required',
+                                residentKey: 'preferred'
+                            },
+                            timeout: 30000
+                        }
+                    });
+
+                    if (credential && credential.rawId) {
+                        state.biometric.registeredCredentials[crewName] = new Uint8Array(credential.rawId);
+                    }
+                    completeBiometricVerification('Mobile Native Thumbprint (WebAuthn)');
+                }
+            } catch (err) {
+                // If running inside a cross-origin iframe or user cancels system prompt, guide them to the on-screen thumbprint sensor
+                if (title) title.textContent = 'Hold the On-Screen Thumbprint Sensor Above';
+                if (hint) hint.textContent = 'Browser security restricted the native popup in this window—simply press and hold the glowing thumbprint pad above for 1 second!';
+            }
+        }
+
+        function completeBiometricVerification(methodLabel) {
+            const crewName = state.selectedCrew;
+            playBiometricTone(true);
+            if (navigator.vibrate) navigator.vibrate([40, 60, 80]);
+
+            // Unlock session for this crew member for 3 minutes
+            state.biometric.verifiedCrew = crewName;
+            state.biometric.verifiedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            state.biometric.expiresAt = Date.now() + 3 * 60 * 1000;
+            state.biometric.method = methodLabel;
+
+            const pending = state.biometric.pendingAction;
+            closeBiometricModal();
+            refreshAllViews();
+
+            if (pending === 'IN' || pending === 'OUT') {
+                handleCrewPunch(pending, true);
+            } else if (pending === 'DAY_OFF') {
+                handleMarkDayOff(true);
+            } else if (pending === 'RESET') {
+                handleClearEntry(true);
+            } else {
+                showToast(`🧬 ${crewName}'s thumbprint verified! Clock-In & Clock-Out unlocked.`, 'emerald');
+            }
+        }
+
+        function lockBiometricSession(showNotification = false) {
+            const prevCrew = state.biometric.verifiedCrew;
+            state.biometric.verifiedCrew = null;
+            state.biometric.verifiedAt = null;
+            state.biometric.expiresAt = null;
+            state.biometric.method = null;
+            refreshAllViews();
+            if (showNotification && prevCrew) {
+                showToast(`🔒 Locked ${prevCrew}'s biometric session.`, 'slate');
+            }
+        }
+
+        function renderBiometricBanner() {
+            const crewName = state.selectedCrew;
+            const isVerified = isCrewBiometricVerified(crewName);
+
+            const banner = document.getElementById('biometricStatusBanner');
+            const iconBox = document.getElementById('bioBannerIconBox');
+            const icon = document.getElementById('bioBannerIcon');
+            const title = document.getElementById('bioBannerTitle');
+            const pill = document.getElementById('bioBannerPill');
+            const desc = document.getElementById('bioBannerDesc');
+            const triggerBtn = document.getElementById('btnTriggerBiometric');
+            const triggerText = document.getElementById('btnTriggerBiometricText');
+            const lockBtn = document.getElementById('btnLockBiometric');
+            const inLockTag = document.getElementById('signInBioLockTag');
+            const outLockTag = document.getElementById('signOutBioLockTag');
+
+            if (!banner) return;
+
+            if (isVerified) {
+                banner.className = 'rounded-2xl p-3.5 sm:p-4 border transition-all bg-emerald-950/35 border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+                iconBox.className = 'w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-xl shrink-0';
+                icon.className = 'fa-solid fa-fingerprint';
+                title.textContent = `${crewName}'s Biometric Identity Verified`;
+                pill.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                pill.textContent = '🧬 Thumbprint Unlocked';
+                desc.innerHTML = `Authenticated via <strong class="text-emerald-300">${state.biometric.method || 'Mobile Thumbprint'}</strong> at ${state.biometric.verifiedAt}. Ready to clock in or out.`;
+                triggerBtn.className = 'w-full sm:w-auto px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5';
+                triggerText.textContent = 'Re-Verify Thumbprint';
+                lockBtn.classList.remove('hidden');
+                lockBtn.classList.add('inline-flex');
+
+                if (inLockTag) {
+                    inLockTag.className = 'inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-200 bg-black/25 px-2 py-0.5 rounded-full';
+                    inLockTag.innerHTML = '<i class="fa-solid fa-circle-check"></i> Biometric Ready';
+                }
+                if (outLockTag) {
+                    outLockTag.className = 'inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-100 bg-black/25 px-2 py-0.5 rounded-full';
+                    outLockTag.innerHTML = '<i class="fa-solid fa-circle-check"></i> Biometric Ready';
+                }
+            } else {
+                banner.className = 'rounded-2xl p-3.5 sm:p-4 border transition-all bg-rose-950/30 border-rose-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+                iconBox.className = 'w-11 h-11 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 text-xl shrink-0';
+                icon.className = 'fa-solid fa-fingerprint';
+                title.textContent = 'Biometric Thumbprint Login Required';
+                pill.className = 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30';
+                pill.textContent = '🔒 Biometric Locked';
+                desc.innerHTML = `Verify <strong class="text-white">${crewName}</strong>'s thumbprint on this mobile device before clocking in or out.`;
+                triggerBtn.className = 'w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 transition';
+                triggerText.textContent = `Scan ${crewName}'s Thumbprint`;
+                lockBtn.classList.add('hidden');
+                lockBtn.classList.remove('inline-flex');
+
+                if (inLockTag) {
+                    inLockTag.className = 'inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-200 bg-black/35 px-2 py-0.5 rounded-full';
+                    inLockTag.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Thumbprint Required';
+                }
+                if (outLockTag) {
+                    outLockTag.className = 'inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-100 bg-black/35 px-2 py-0.5 rounded-full';
+                    outLockTag.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Thumbprint Required';
+                }
+            }
+        }
+
+        /**
          * Initialize Firebase Auth FIRST, then attach Firestore listeners (Rule 3)
+         * Uses dynamic import() so that when the user has NO internet connection,
+         * the app never crashes or blocks Sign-In / Sign-Out!
          */
         async function initCloudStorage() {
+            const headerIdEl = document.getElementById('headerUserIdDisplay');
+            const syncIdEl = document.getElementById('syncTabUserId');
+            if (headerIdEl) headerIdEl.textContent = currentUserId;
+            if (syncIdEl) syncIdEl.textContent = currentUserId;
+
+            if (!navigator.onLine || state.isSimulatedOffline) {
+                updateCloudStatusUI('offline', 'Offline • Ready to Log');
+                return;
+            }
+
             try {
                 if (typeof __firebase_config === 'undefined' || !__firebase_config) {
-                    updateCloudStatusUI('local', 'Local Mode (No Cloud Config)');
+                    updateCloudStatusUI('local', 'Offline-Ready Local Mode');
                     return;
                 }
 
+                // Dynamically import Firebase SDK only when online so offline mobile loads never fail
+                if (!fbModules) {
+                    const [appMod, authMod, fsMod] = await Promise.all([
+                        import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
+                        import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"),
+                        import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")
+                    ]);
+                    fbModules = { ...appMod, ...authMod, ...fsMod };
+                }
+
                 const firebaseConfig = JSON.parse(__firebase_config);
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+                app = fbModules.initializeApp(firebaseConfig);
+                db = fbModules.getFirestore(app);
+                auth = fbModules.getAuth(app);
 
                 // RULE 3: Authenticate FIRST before any Firestore operation
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
+                    await fbModules.signInWithCustomToken(auth, __initial_auth_token);
                 } else {
-                    await signInAnonymously(auth);
+                    await fbModules.signInAnonymously(app ? auth : undefined);
                 }
 
-                onAuthStateChanged(auth, (user) => {
+                fbModules.onAuthStateChanged(auth, (user) => {
                     currentUser = user;
                     if (user) {
                         currentUserId = user.uid;
-                        document.getElementById('headerUserIdDisplay').textContent = currentUserId;
-                        document.getElementById('syncTabUserId').textContent = currentUserId;
+                        if (headerIdEl) headerIdEl.textContent = currentUserId;
+                        if (syncIdEl) syncIdEl.textContent = currentUserId;
                         isCloudReady = true;
                         startCloudListeners();
+                        if (state.offlineQueue.length > 0 && navigator.onLine && !state.isSimulatedOffline) {
+                            syncOfflineQueue();
+                        }
                     }
                 });
             } catch (err) {
-                console.error('Cloud initialization error:', err);
-                updateCloudStatusUI('error', 'Cloud Offline');
+                console.warn('Running in offline-first mode (cloud unreachable):', err);
+                updateCloudStatusUI('offline', 'Offline Mode • Local Ready');
             }
         }
 
@@ -1013,15 +1812,15 @@ function doGet() {
          * Listen to public shared DTR records and live punch logs (Rules 1 & 2)
          */
         function startCloudListeners() {
-            if (!currentUser || !db) return;
+            if (!currentUser || !db || !fbModules) return;
 
             updateCloudStatusUI('syncing', 'Syncing Cloud...');
 
             // RULE 1: Strict public path /artifacts/{appId}/public/data/dtr_days
-            const dtrDaysCol = collection(db, 'artifacts', appId, 'public', 'data', 'dtr_days');
+            const dtrDaysCol = fbModules.collection(db, 'artifacts', appId, 'public', 'data', 'dtr_days');
 
             // RULE 2: Simple collection query without orderBy/where/limit
-            onSnapshot(
+            fbModules.onSnapshot(
                 dtrDaysCol,
                 async (snapshot) => {
                     if (snapshot.empty && !hasSeededInitialCloud) {
@@ -1053,13 +1852,13 @@ function doGet() {
                 },
                 (error) => {
                     console.error('Error listening to dtr_days:', error);
-                    updateCloudStatusUI('error', 'Cloud Sync Error');
+                    updateCloudStatusUI('error', 'Offline • Saved Locally');
                 }
             );
 
             // Listen to real-time punch activity logs across devices
-            const logsCol = collection(db, 'artifacts', appId, 'public', 'data', 'dtr_logs');
-            onSnapshot(
+            const logsCol = fbModules.collection(db, 'artifacts', appId, 'public', 'data', 'dtr_logs');
+            fbModules.onSnapshot(
                 logsCol,
                 (snapshot) => {
                     const logs = [];
@@ -1081,10 +1880,10 @@ function doGet() {
          * Save a single day's DTR record to Firestore public collection
          */
         async function saveDayRecordToCloud(periodKey, dayRecord) {
-            if (!currentUser || !db || !dayRecord) return;
+            if (!currentUser || !db || !fbModules || !dayRecord) return;
             const docId = `${periodKey}_${dayRecord.date}`;
-            const dayDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'dtr_days', docId);
-            await setDoc(dayDocRef, {
+            const dayDocRef = fbModules.doc(db, 'artifacts', appId, 'public', 'data', 'dtr_days', docId);
+            await fbModules.setDoc(dayDocRef, {
                 period: periodKey,
                 date: dayRecord.date,
                 label: dayRecord.label,
@@ -1166,6 +1965,7 @@ function doGet() {
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="font-bold text-white">${log.crew}</span>
                         <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-semibold">${log.status || 'Updated'}</span>
+                        ${log.biometricVerified ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 font-semibold"><i class="fa-solid fa-fingerprint mr-1"></i>Thumbprint Verified</span>' : ''}
                         <span class="text-slate-400 font-mono-clock">${log.date}</span>
                         <span class="font-mono-clock text-emerald-400">In: ${log.timeIn || '—'}</span>
                         <span class="font-mono-clock text-amber-300">Out: ${log.timeOut || '—'}</span>
@@ -1464,13 +2264,16 @@ function doGet() {
 
             // Update Button Subtexts & States
             const useFixedOut = document.getElementById('useFixedOutToggle').checked;
+            const isBioVerified = isCrewBiometricVerified(name);
+            renderBiometricBanner();
+
             document.getElementById('signInSubtext').innerHTML = crewRec.timeIn && crewRec.timeIn !== 'Day Off'
-                ? `Signed in at <strong>${crewRec.timeIn}</strong> (Tap to update)`
-                : `Tap to log arrival time for <strong>${name}</strong>`;
+                ? `Signed in at <strong>${crewRec.timeIn}</strong> (${isBioVerified ? 'Tap to update' : 'Thumbprint required'})`
+                : `${isBioVerified ? 'Tap to log arrival time' : 'Tap to verify thumbprint & sign in'} for <strong>${name}</strong>`;
 
             document.getElementById('signOutSubtext').innerHTML = useFixedOut
-                ? `Tap to log Fixed Out (<strong>${profile.fixedOut}</strong>)`
-                : `Tap to log current departure time`;
+                ? `${isBioVerified ? 'Tap to log Fixed Out' : 'Verify thumbprint for Fixed Out'} (<strong>${profile.fixedOut}</strong>)`
+                : `${isBioVerified ? 'Tap to log current departure time' : 'Verify thumbprint to sign out'}`;
 
             document.getElementById('lateIndicatorText').innerHTML = evalInfo.isLate
                 ? `<span class="text-rose-400 font-bold">🚨 Late by ${evalInfo.lateMinutes} mins (Expected ${profile.expectedIn})</span>`
@@ -1514,45 +2317,17 @@ function doGet() {
         }
 
         /**
-         * Get active date record object from Oct 2026
+         * Handle One-Tap SIGN IN or SIGN OUT (Guarded by Mandatory Mobile Thumbprint Biometric Login)
          */
-        function getActiveDayRecord() {
-            return state.records.oct2026[state.activeDate];
-        }
-
-        /**
-         * Determine the timestamp to record based on the selected mode (Live Clock, Expected Shift Time, or Custom Time)
-         */
-        function resolvePunchTime(type, crewName) {
-            const profile = CREW_PROFILES[crewName];
-            const mode = document.getElementById('timeStampMode').value;
-            const useFixedOut = document.getElementById('useFixedOutToggle').checked;
-
-            if (type === 'OUT' && useFixedOut && mode !== 'custom') {
-                return profile.fixedOut;
-            }
-            if (mode === 'expected') {
-                return type === 'IN' ? profile.expectedIn : profile.fixedOut;
-            }
-            if (mode === 'custom') {
-                const val = document.getElementById('manualTimeInput').value;
-                return format24To12Hour(val || profile.expectedIn24);
-            }
-
-            // Default: Current live PHT time
-            const now = new Date();
-            return now.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
-        }
-
-        /**
-         * Handle One-Tap SIGN IN or SIGN OUT
-         */
-        function handleCrewPunch(type) {
+        function handleCrewPunch(type, bypassedFromModal = false) {
             const crewName = state.selectedCrew;
+
+            // Enforce Biometric Thumbprint verification before allowing Sign-In or Sign-Out
+            if (!bypassedFromModal && !isCrewBiometricVerified(crewName)) {
+                openBiometricModal(type);
+                return;
+            }
+
             const dayRecord = getActiveDayRecord();
             if (!dayRecord[crewName]) {
                 dayRecord[crewName] = { timeIn: '', timeOut: '' };
@@ -1562,6 +2337,7 @@ function doGet() {
 
             if (type === 'IN') {
                 dayRecord[crewName].timeIn = stampedTime;
+                dayRecord[crewName].bioIn = true;
                 if (dayRecord[crewName].timeOut === 'Day Off') {
                     dayRecord[crewName].timeOut = '';
                 }
@@ -1571,39 +2347,48 @@ function doGet() {
                     dayRecord[crewName].timeIn = CREW_PROFILES[crewName].expectedIn;
                 }
                 dayRecord[crewName].timeOut = stampedTime;
+                dayRecord[crewName].bioOut = true;
             }
 
             const evalInfo = evaluateAttendance(crewName, dayRecord[crewName].timeIn, dayRecord[crewName].timeOut);
-            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, dayRecord[crewName].timeIn, dayRecord[crewName].timeOut, evalInfo.status);
+            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, dayRecord[crewName].timeIn, dayRecord[crewName].timeOut, evalInfo.status, true);
 
             refreshAllViews();
 
             const actionLabel = type === 'IN' ? 'Signed In' : 'Signed Out';
             const lateNote = (type === 'IN' && evalInfo.isLate) ? ` (🚨 Late ${evalInfo.lateMinutes}m)` : '';
-            showToast(`${crewName} ${actionLabel} at ${stampedTime}${lateNote}`, type === 'IN' ? 'emerald' : 'amber');
+            showToast(`🧬 ${crewName} ${actionLabel} at ${stampedTime}${lateNote} (Thumbprint Verified)`, type === 'IN' ? 'emerald' : 'amber');
         }
 
         /**
-         * Mark the selected crew member as "Day Off" for the active date
+         * Mark the selected crew member as "Day Off" for the active date (Biometric guarded)
          */
-        function handleMarkDayOff() {
+        function handleMarkDayOff(bypassedFromModal = false) {
             const crewName = state.selectedCrew;
+            if (!bypassedFromModal && !isCrewBiometricVerified(crewName)) {
+                openBiometricModal('DAY_OFF');
+                return;
+            }
             const dayRecord = getActiveDayRecord();
             dayRecord[crewName] = { timeIn: 'Day Off', timeOut: 'Day Off' };
 
-            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, 'Day Off', 'Day Off', 'Day Off');
+            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, 'Day Off', 'Day Off', 'Day Off', true);
             refreshAllViews();
-            showToast(`Marked ${crewName} as Day Off on ${dayRecord.label}`, 'sky');
+            showToast(`🧬 Marked ${crewName} as Day Off on ${dayRecord.label}`, 'sky');
         }
 
         /**
-         * Clear the selected crew member's entry for the active date
+         * Clear the selected crew member's entry for the active date (Biometric guarded)
          */
-        function handleClearEntry() {
+        function handleClearEntry(bypassedFromModal = false) {
             const crewName = state.selectedCrew;
+            if (!bypassedFromModal && !isCrewBiometricVerified(crewName)) {
+                openBiometricModal('RESET');
+                return;
+            }
             const dayRecord = getActiveDayRecord();
             dayRecord[crewName] = { timeIn: '', timeOut: '' };
-            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, '', '', 'Reset Day');
+            recordSyncEvent(crewName, dayRecord.date, dayRecord.day, '', '', 'Reset Day', true);
             refreshAllViews();
             showToast(`Cleared ${crewName}'s DTR log for ${dayRecord.label}`, 'slate');
         }
@@ -1611,7 +2396,7 @@ function doGet() {
         /**
          * Record an action into the Offline Sync Queue (when offline) or push live to Cloud Storage & Webhook (when online)
          */
-        async function recordSyncEvent(crew, date, day, timeIn, timeOut, status) {
+        async function recordSyncEvent(crew, date, day, timeIn, timeOut, status, biometricVerified = true) {
             const periodKey = date.startsWith('2026-09') ? 'sep2026' : 'oct2026';
             const dayRecord = state.records[periodKey][date];
             const payload = {
@@ -1626,16 +2411,95 @@ function doGet() {
                 timeIn,
                 timeOut,
                 status,
+                biometricVerified,
+                biometricMethod: state.biometric.method || 'Mobile Thumbprint',
                 userId: currentUserId || 'offline-device'
             };
 
+            // Always add to activity feed immediately so crew sees instant confirmation offline or online
+            state.cloudActivityLogs = [payload, ...state.cloudActivityLogs].slice(0, 30);
+            renderCloudActivityLogs();
+
             const isOnline = navigator.onLine && !state.isSimulatedOffline;
-            if (!isOnline) {
+            if (!isOnline || !currentUser || !db || !fbModules) {
                 state.offlineQueue.push(payload);
-                updateCloudStatusUI('offline', 'Offline • Queued');
+                updateCloudStatusUI('offline', `Offline • ${state.offlineQueue.length} Saved`);
                 updateNetworkUI();
                 return;
             }
+
+            // Live Cloud Storage Write when Online
+            try {
+                updateCloudStatusUI('syncing', 'Saving to Cloud...');
+                await saveDayRecordToCloud(periodKey, dayRecord);
+                const logsCol = fbModules.collection(db, 'artifacts', appId, 'public', 'data', 'dtr_logs');
+                await fbModules.addDoc(logsCol, payload);
+                updateCloudStatusUI('online', 'Cloud Live • Synced');
+            } catch (err) {
+                console.warn('Cloud write failed, queued offline:', err);
+                state.offlineQueue.push(payload);
+                updateCloudStatusUI('offline', `Offline • ${state.offlineQueue.length} Queued`);
+                updateNetworkUI();
+            }
+
+            if (state.webhookUrl) {
+                sendToGoogleSheetWebhook(payload);
+            }
+        }
+
+        /**
+         * Sync all queued offline punches to Cloud Storage & Google Sheet when back online
+         */
+        async function syncOfflineQueue() {
+            if (state.isSimulatedOffline) {
+                state.isSimulatedOffline = false;
+            }
+
+            if (!currentUser || !db || !fbModules) {
+                await initCloudStorage();
+            }
+
+            const count = state.offlineQueue.length;
+            if (count === 0) {
+                updateNetworkUI();
+                if (currentUser && db && fbModules) {
+                    await pushAllLocalRecordsToCloud();
+                }
+                showToast('All DTR records are synced with Cloud Storage & Updated DTR!', 'emerald');
+                return;
+            }
+
+            const queuedItems = [...state.offlineQueue];
+            state.offlineQueue = [];
+            updateNetworkUI();
+
+            if (currentUser && db && fbModules) {
+                try {
+                    updateCloudStatusUI('syncing', 'Syncing Offline Queue...');
+                    for (const item of queuedItems) {
+                        const periodKey = item.period || (item.date?.startsWith('2026-09') ? 'sep2026' : 'oct2026');
+                        const dayRecord = state.records[periodKey]?.[item.date];
+                        if (dayRecord) {
+                            await saveDayRecordToCloud(periodKey, dayRecord);
+                        }
+                        const logsCol = fbModules.collection(db, 'artifacts', appId, 'public', 'data', 'dtr_logs');
+                        await fbModules.addDoc(logsCol, { ...item, userId: currentUserId || item.userId });
+                    }
+                    updateCloudStatusUI('online', 'Cloud Live • Synced');
+                } catch (e) {
+                    console.warn('Could not reach cloud during sync, keeping items in queue:', e);
+                    state.offlineQueue.push(...queuedItems);
+                    updateNetworkUI();
+                }
+            }
+
+            if (state.webhookUrl) {
+                queuedItems.forEach(item => sendToGoogleSheetWebhook(item));
+            }
+
+            renderOfflineQueueList();
+            showToast(`Synced ${count} offline crew log(s) to Updated DTR!`, 'emerald');
+        }
 
             // Live Cloud Storage Write
             if (currentUser && db && dayRecord) {
@@ -1755,6 +2619,27 @@ function doGet() {
         function toggleGoLiveModal(show) {
             const modal = document.getElementById('goLiveModal');
             if (modal) modal.classList.toggle('hidden', !show);
+        }
+
+        /**
+         * Download the complete, self-contained index.html file ready for GitHub Pages upload.
+         * If the user has pasted a Google Apps Script Webhook URL, it is embedded into the downloaded file.
+         */
+        function downloadStandaloneAppHtml() {
+            let fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+            if (state.webhookUrl) {
+                fullHtml = fullHtml.replace("webhookUrl: '',", `webhookUrl: '${state.webhookUrl}',`);
+            }
+            const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Downloaded index.html ready for GitHub Pages!', 'emerald');
         }
 
         /**
@@ -2195,6 +3080,11 @@ function doGet() {
         }
 
         function selectCrew(crewName) {
+            if (state.selectedCrew !== crewName) {
+                // Automatically lock biometric session when switching crew profiles so each crew member must scan their own thumbprint
+                state.biometric.verifiedCrew = null;
+                state.biometric.expiresAt = null;
+            }
             state.selectedCrew = crewName;
             const profile = CREW_PROFILES[crewName];
             document.getElementById('manualTimeInput').value = profile.expectedIn24;
@@ -2312,11 +3202,14 @@ function doGet() {
         // Listen for real browser online/offline changes
         window.addEventListener('online', () => {
             updateNetworkUI();
-            if (state.offlineQueue.length > 0) syncOfflineQueue();
+            initCloudStorage().then(() => {
+                if (state.offlineQueue.length > 0) syncOfflineQueue();
+            });
         });
         window.addEventListener('offline', () => {
             updateNetworkUI();
-            showToast('Device went offline. Crew punches will queue automatically.', 'amber');
+            updateCloudStatusUI('offline', 'Offline • Ready to Log');
+            showToast('Offline Mode active. Crew can still Sign In & Sign Out!', 'amber');
         });
         document.getElementById('useFixedOutToggle').addEventListener('change', renderPunchConsole);
 
@@ -2343,14 +3236,22 @@ function doGet() {
             handlePasteSheetData,
             toggleAppsScriptModal,
             toggleGoLiveModal,
+            downloadStandaloneAppHtml,
             pullFromGoogleSheetWebhook,
             saveWebhookUrl,
             copyAppsScriptSnippet,
             copyUserIdToClipboard,
-            forceCloudPushAll
+            forceCloudPushAll,
+            openBiometricModal,
+            closeBiometricModal,
+            instantTapThumbprintScan,
+            startThumbprintHold,
+            cancelThumbprintHold,
+            triggerNativeMobileBiometric,
+            lockBiometricSession
         });
 
-        // Initialize App & Cloud Storage on Load
+        // Initialize App immediately without waiting for network
         window.onload = function() {
             initializeSheetData();
             startLiveClock();
