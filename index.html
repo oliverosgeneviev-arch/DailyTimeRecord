@@ -1271,7 +1271,7 @@ function upsertCrewRow(sheet, dateStr, dayStr, timeIn, timeOut, status) {
 
             const isOnline = navigator.onLine && !state.isSimulatedOffline;
             if (passkeyBadge) {
-                passkeyBadge.textContent = isOnline ? 'Online • Sensor Ready' : 'Offline • Sensor Ready';
+                passkeyBadge.textContent = isOnline ? 'Online • Sensor Ready' : '100% Offline • Sensor Ready';
             }
 
             resetScannerVisuals();
@@ -1308,20 +1308,20 @@ function upsertCrewRow(sheet, dateStr, dayStr, timeIn, timeOut, status) {
         function instantTapThumbprintScan(event) {
             if (event && event.cancelable) event.preventDefault();
             if (isScanningInProgress) return;
-            runAutomatedThumbprintScan('Mobile Thumbprint Sensor');
+            runAutomatedThumbprintScan('Offline Thumbprint Sensor');
         }
 
         function startThumbprintHold(event) {
             if (event && event.cancelable) event.preventDefault();
             if (isScanningInProgress) return;
-            runAutomatedThumbprintScan('Thumbprint Sensor Scan');
+            runAutomatedThumbprintScan('Thumbprint Sensor Hold');
         }
 
         function cancelThumbprintHold() {
             // Allow started scan to complete smoothly on mobile touchscreens
         }
 
-        function runAutomatedThumbprintScan(methodLabel = 'Mobile Thumbprint Sensor') {
+        function runAutomatedThumbprintScan(methodLabel = 'Offline Thumbprint Sensor') {
             if (holdTimerInterval) clearInterval(holdTimerInterval);
             isScanningInProgress = true;
 
@@ -1350,13 +1350,14 @@ function upsertCrewRow(sheet, dateStr, dayStr, timeIn, timeOut, status) {
                     isScanningInProgress = false;
                     completeBiometricVerification(methodLabel);
                 }
-            }, 55);
+            }, 50);
         }
 
         async function triggerNativeMobileBiometric() {
             const crewName = state.selectedCrew;
             const title = document.getElementById('bioScanStatusTitle');
 
+            // Fallback directly to offline automated scan if offline or WebAuthn is unsupported
             if (!navigator.onLine || state.isSimulatedOffline || !window.PublicKeyCredential || !navigator.credentials || window.location.protocol === 'file:') {
                 runAutomatedThumbprintScan('Mobile Offline Thumbprint');
                 return;
@@ -1378,7 +1379,7 @@ function upsertCrewRow(sheet, dateStr, dayStr, timeIn, timeOut, status) {
                                 transports: ['internal']
                             }],
                             userVerification: 'required',
-                            timeout: 12000
+                            timeout: 10000
                         }
                     });
                     completeBiometricVerification('Mobile Native Thumbprint');
@@ -1402,7 +1403,7 @@ function upsertCrewRow(sheet, dateStr, dayStr, timeIn, timeOut, status) {
                                 userVerification: 'required',
                                 residentKey: 'preferred'
                             },
-                            timeout: 12000
+                            timeout: 10000
                         }
                     });
 
